@@ -1,0 +1,64 @@
+<template>
+	<div class="silvera">
+		<div class="content">
+        	<h2>Happy Silver</h2>
+        	<p>
+        		Happy Silver is earned through promotional activities for 
+				example Referral program, Cashbacks, Voucher code redemption, etc.
+        	</p>
+        	<p>
+        		Now you will get Rs. 2000 instantly when you login through your Facebook account or or fill the sign-up form.
+				Earn your Happy Silver Cash quickly by Joining in our Referral Program. <span @click="$router.push('/Referral')">Know more</span>
+        	</p>
+        	<p class="gray">
+        		* It has usage limit for booking and validity of 90 days from 
+				the date of earning.
+        	</p>
+        </div>
+        <div class="content">
+        	<h2>Happy Silver Usage Rules</h2>
+        	<p>
+        		Happy Silver can be used for flight booking as per the 
+				following rules:
+        	</p>
+        	<p>
+        		1.Domestic Flights Booking: Coming soon <span v-show="false"> Up to 10% of transaction value 
+				  and maximum cap RS.700 per day (whichever is lower). 
+				  Also a cap of 2 transactions in 24 hours' time window.</span>
+        	</p>
+        	<p>
+        		2.International Flights Booking: Coming soon<span v-show='false'> Up to 10% of transaction value 
+				  and maximum cap RS.2500 per day (whichever is lower). 
+				  Also a cap of 2 transactions in 24 hours' time window.</span>
+        	</p>
+        	<p>
+        		3.Happy Silver cannot be used with promotion code at the 
+				same time.
+        	</p>
+        </div>
+	</div>
+</template>
+<style lang='less' scoped>
+	.silvera{
+		.content{
+			font-size:0.52rem;
+			color:#666;
+			border-bottom:1px solid #eee;
+			padding-top:0.4rem;
+			h2{
+				font-size:0.64rem;
+				color:#0b9d78;
+				text-align:left;
+				line-height:1.2rem;
+			}
+			p{
+				text-align:left;
+				margin:0.4rem 0;
+				line-height:0.769rem;
+			}
+			.gray{
+				color:#b0b0b0;
+			}
+		}
+	}
+</style>

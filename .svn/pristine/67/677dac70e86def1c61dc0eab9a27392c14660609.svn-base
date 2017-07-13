@@ -1,0 +1,743 @@
+<template>
+	<div class="wrapper">
+		<head-top class="header">
+			<img slot="left" class="prev" :src="heads.img1" @click="goBack" alt="">
+			<div slot="title" class="title">
+				<div class="title-detail">
+					<span>{{flightOrder.departAirport.cityName}}</span>
+					<span class="title-detail-ico"></span>
+					<span>{{flightOrder.destinationAirport.cityName}}</span>
+				</div>
+				<div class="title-info">
+					<span>{{flightTimeRangeString}}</span>
+					<span>&bull;</span>
+					<span>{{travellerNum}}Traveller</span>
+				</div>
+			</div>
+			<!-- <filter :filter='filter'></filter> -->
+			<a slot="right" v-show="true" @click="skipFilter" ><img :src="heads.img2" alt=""></a>
+		</head-top>
+		<loading v-show="showLoad"></loading>
+		<mt-popup
+		  v-model="showPopup"
+		  popup-transition="popup-fade"
+		  closeOnClickModal="false"
+		  modal="true">
+		 	<failure>
+		 		<div slot="head">flight unavailable</div>
+		  		<p slot="content">We've really sorry,but the flight you selected is no longer available.please select a different flight</p>
+		  		<mt-button @click="goBack" slot="btn" class="btn" type="default">Ok</mt-button>
+		 	</failure>
+		</mt-popup>
+		<div class="container">
+			<transition enter-active-class="slideInRight" leave-active-class="slideOutRight">
+				<keep-alive>
+					<router-view :filter="roundTripFilter" class="animated"></router-view>
+				</keep-alive>	
+			</transition>
+			<div class="total">
+				<div class="total-cont flex space-between align-items-center">
+					<div class="total-amount">
+						<span>Total</span>
+						<span>Amount</span>
+					</div>
+					<div class="total-price">
+						<div class="total-price-rs">
+							<span class="rs">RS.</span>
+							<span>{{totalPrice | formatDate}}</span>
+						</div>
+						<div class="total-price-ecash">
+							<span class="rs">RS.</span>
+							<span>1000 eCash</span>
+						</div>
+					</div>
+					<a @click='onBookingButtonClick' class="booking">BOOK</a>
+				</div>
+			</div>
+			<div class="flight-from">
+				<div class="flight-from-cont flex space-between">
+					<span>{{flightOrder.departAirport.iataCode +'-'+ flightOrder.destinationAirport.iataCode }}</span>
+					<span>{{flightOrder.destinationAirport.iataCode +'-'+ flightOrder.departAirport.iataCode}}</span>
+				</div>
+			</div>
+			<div class="flight-detail">
+				<div class="flight-detail-title flex space-between">
+					<div class="flight-title flex space-between">
+						<span class="departTime" @click="sortDepartTime">Time<i><img :src="sortImg"></i></span>
+						<span class="departPrice" @click="sortDepartPrice">Price<i><img :src="sortImg"></i></span>
+					</div>
+					<div class="flight-title flex space-between">
+						<span class="returnTime" @click="sortReturnTime">Time<i><img :src="sortImg"></i></span>
+						<span class="returnPrice" @click="sortReturnPrice">Price<i><img :src="sortImg"></i></span>
+					</div>
+				</div>
+				<div class="flight-detail-cont flex space-between">
+					<div class="flight-detail-lists">
+						<div class="flight-detail-track-depart clear"
+						v-for="(item, index) in displayedDepartFlights()"
+						:class="['flight-detail-list', (selectedDepartFlightIndex)==index?'item-act':'item-def']"
+						@click='onDepartItemClick(index)'>
+							<div class="flight-detail-ico left">
+								<img :src="item.airline.iconPath" alt="">
+							</div>
+							<div class="flight-detail-info left">
+								<div class="flight-number">
+									<span>{{item.flightNumber}}</span>
+								</div>
+								<div class="flight-time flex space-between">
+									<span>{{TimeFormatUtil.getDisplayHourAndMinute(item.departDate)}}</span>
+									<span>{{TimeFormatUtil.getDisplayHourAndMinute(item.returnDate)}}<i v-show="item.durationDays!=0">&nbsp;+{{item.durationDays}}</i></span>
+								</div>
+								<div class="flight-aside">
+									<div class="line">
+										<span class="round"></span>
+										<span class="round"></span>
+									</div>
+								</div>
+								<div class="flight-mileage flex space-between">
+									<span>{{TimeFormatUtil.getDurationDescription(item)}}</span>
+									<span>{{(item.stops.length-1 == 0)? 'non-stop' : item.stops.length-1 + 'stop'}}</span>
+								</div>
+								<div class="flight-price clear">
+									<div class="present-price left">
+										<span class="rs">Rs.</span>
+										<span v-if="selectedDepartFlightIndex==index">{{item.realPrice | formatDate}}</span>
+										<span v-else>{{item.price-item.commonDiscount | formatDate}}</span>
+									</div>
+									<div class="past-price left">
+										<span class="rs">Rs.</span>
+										<span>{{item.price | formatDate}}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="flight-detail-lists">
+						<div class="flight-detail-track-return clear"
+						 v-for="(item, index) in displayedReturnFlights()" 
+						:class="['flight-detail-list', (selectedReturnFlightIndex)==index?'item-act':'item-def']"
+						@click='onReturnItemClick(index)'>
+							<div class="flight-detail-ico left">
+								<img :src="item.airline.iconPath" alt="">
+							</div>
+							<div class="flight-detail-info left">
+								<div class="flight-number">
+									<span>{{item.flightNumber}}</span>
+								</div>
+								<div class="flight-time flex space-between">
+									<span>{{TimeFormatUtil.getDisplayHourAndMinute(item.departDate)}}</span>
+									<span>{{TimeFormatUtil.getDisplayHourAndMinute(item.returnDate)}}<i v-show="item.durationDays!=0">&nbsp;+{{item.durationDays}}</i></span>
+								</div>
+								<div class="flight-aside">
+									<div class="line">
+										<span class="round"></span>
+										<span class="round"></span>
+									</div>
+								</div>
+								<div class="flight-mileage flex">
+									<span>{{TimeFormatUtil.getDurationDescription(item)}}</span>
+									<span>{{(item.stops.length-1 == 0)? 'non-stop' : item.stops.length-1 + 'stop'}}</span>
+								</div>
+								<div class="flight-price flex content-start">
+									<div class="present-price">
+										<span class="rs">Rs.</span>
+										<span v-if="selectedReturnFlightIndex==index">{{item.realPrice | formatDate}}</span>
+										<span v-else>{{item.price-item.commonDiscount | formatDate}}</span>
+									</div>
+									<div class="past-price">
+										<span class="rs">Rs.</span>
+										<span>{{item.price}}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+<script>
+import headTop from '../../../components/head/head.vue'
+import loading from '../../../components/loading/loading.vue'
+import failure from '../../failure/failure.vue'
+import {TimeFormatUtil,GetFlightOrderUtil} from '../../../models/utils'
+import {Flight, FlightFactory} from '../../../models/flight'
+import { Indicator,Toast } from 'mint-ui'
+import {DiscountItem, RoundTripDiscountManager, RoundTripCompanyDiscountPolicy, RoundTripUnionDiscountPolicy, 
+	RoundTripLadderPolicy} from '../../../models/aboutdiscount/'
+	import { RoundTripFilter } from '../../../models/filter'
+
+	import * as XFlight from '../../../vuex/models/flight/XFlight.js'
+
+let _companyPolicy = null
+let _ladderPolicy = null
+let _unionPolicy = null
+let _roundTripDiscountManager = null
+
+	export default{
+		components:{
+			headTop,
+			loading,
+			failure
+		},
+		data(){
+			return {
+				showLoad:false,
+				showPopup:false,
+				heads:{
+					img1:require('../../../assets/images/flight-prev.png'),
+					img2:require('../../../assets/images/ic-loudou.png'),
+					fromCity:'New Delhi',
+					toCity:'Mumbai',
+					time:'18Mar-31Mar',
+					traveller:'1'
+				},
+				isDepartPrice:{isSort: true},
+				isDepartTime:{isSort:true},
+				isReturnPrice:{isSort:true},
+				isReturnTime:{isSort:true},
+				sortByTime:'SORT_BY_TIME',
+				sortByPrice:'SORT_BY_PRICE',
+				sortImg:require('../../../assets/images/ic-btn-one1.png'),
+				TimeFormatUtil,
+				selectedDepartFlightIndex: 0,
+				selectedReturnFlightIndex: 0,
+				roundTripFilter:null,
+				filterOptions:{}
+			}
+		},
+		computed:{
+			flightTimeRangeString(){
+				let d = this.flightOrder.departDate
+				let r = this.flightOrder.returnDate
+	
+				return TimeFormatUtil.getMonthDescription(d.getMonth()) + d.getDate() + '-' + TimeFormatUtil.getMonthDescription(r.getMonth()) + r.getDate();
+			},
+			flightOrder: function(){
+
+				return GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+			},
+			travellerNum(){
+				let adultNum = this.flightOrder.adults.length
+				let childNum = this.flightOrder.children.length
+				let infantsNum = this.flightOrder.infants.length
+				return (adultNum + childNum + infantsNum)
+			},
+			totalPrice: function(){
+
+			if(this.displayedDepartFlights()!=null && this.displayedReturnFlights()!=null){
+				
+					let price1 = 0	
+					let price2 = 0;	
+					if(this.displayedDepartFlights().length!=0){
+						let dFlight = this.displayedDepartFlights()[this.selectedDepartFlightIndex]
+						price1 = dFlight.realPrice
+					}			
+					if(this.displayedReturnFlights().length!=0){
+						let rFilght = this.displayedReturnFlights()[this.selectedReturnFlightIndex]
+						price2 = rFilght.realPrice
+					}
+					
+						return price1 + price2
+				}else{
+					return 0
+				}
+	
+			}
+		},
+		watch: {
+			
+			$route(){
+				Indicator.close();
+			},
+			selectedDepartFlightIndex(val, old) {
+				
+				this.displayedDepartFlights()[old].realDiscount = 0
+				this.displayedReturnFlights()[this.selectedReturnFlightIndex].realDiscount = 0
+				this.onBothItemSelected()
+			}, 
+			selectedReturnFlightIndex(val, old) {
+				
+				this.displayedDepartFlights()[this.selectedDepartFlightIndex].realDiscount = 0
+				this.displayedReturnFlights()[old].realDiscount = 0
+				this.onBothItemSelected()
+			}
+		},
+		methods:{
+			goBack(){
+				Indicator.close();
+				this.$router.go(-2);
+			},
+			skipFilter(){
+				this.$router.push('/roundtrip/filter');
+			},
+			rotates(el,itemObj){
+				//location.reload();
+				if(itemObj.isSort){
+					el.css({
+						transform:'rotateX(180deg)',
+						transition:'.3s'
+					})
+				}else{
+					el.css({
+						transform:'rotateX(0deg)',
+						transition:'.3s'
+					})
+				}
+			},
+			sorts(sortType,itemObj,obj,flightType){
+
+				itemObj.isSort =! itemObj.isSort;
+				switch(sortType){
+					case 'SORT_BY_TIME':
+						obj.sort((a,b)=>{
+							if(itemObj.isSort){
+								return a.departDate.getTime() - b.departDate.getTime()
+							}else{
+								return b.departDate.getTime() - a.departDate.getTime()
+							}
+						})
+					break;
+					case 'SORT_BY_PRICE':
+						obj.sort((a,b)=>{
+							if(itemObj.isSort){
+								return a.getPrice() - b.getPrice();
+							}else{
+								return b.getPrice() - a.getPrice();
+							}
+						})
+					break;
+				}
+			
+				let flightHtmlObjArr = null;
+				let f = false;
+				if(flightType=="depart"){
+					 flightHtmlObjArr= $(".flight-detail-track-return")
+					 f=true
+				}else if(flightType=="return"){
+					flightHtmlObjArr= $(".flight-detail-track-return")
+					f=false
+				}
+				
+				for(let i=0; i<flightHtmlObjArr.length;i++){
+					let classStr =  flightHtmlObjArr[i].className  
+					
+					if(classStr.indexOf("item-act")!=-1){
+						if(f){
+							this.selectedDepartFlightIndex = i
+						}else{
+							this.selectedReturnFlightIndex = i
+						}
+						break;
+					}
+				}
+				this.onBothItemSelected()
+			},
+			sortDepartTime(){
+				this.rotates($('.departTime img'),this.isDepartTime)
+				this.sorts(this.sortByTime,this.isDepartTime,this.displayedDepartFlights(),"depart")
+			},
+			sortDepartPrice(){
+				this.rotates($('.departPrice img'),this.isDepartPrice)
+				this.sorts(this.sortByPrice,this.isDepartPrice,this.displayedDepartFlights(),"depart")
+			},
+			sortReturnTime(){
+				
+				this.rotates($('.returnTime img'),this.isReturnTime)
+				this.sorts(this.sortByTime,this.isReturnTime,this.displayedReturnFlights(),"return")
+			},
+			sortReturnPrice(){
+				
+				this.rotates($('.returnPrice img'),this.isReturnPrice)
+				this.sorts(this.sortByPrice,this.isReturnPrice,this.displayedReturnFlights(),"return")
+			},
+			onBookingButtonClick(){
+				let departFlight = this.displayedDepartFlights()[this.selectedDepartFlightIndex]
+				let returnFlights = this.displayedReturnFlights()[this.selectedReturnFlightIndex]
+				let deprtAtTime = departFlight.atTime;
+				let returnDtTime = returnFlights.dtTime;
+				if(new Date(deprtAtTime)> new Date(returnDtTime)){
+					Toast({message:"Hey, these flights overlap, please change the selection",
+						duration:2000
+					})
+					return
+				}
+				
+				this.flightOrder.setDepartFlight(this, departFlight)
+				this.flightOrder.setReturnFlight(this, returnFlights)
+
+				this.flightOrder.setAirportFullName(this.displayedDepartFlights()[this.selectedDepartFlightIndex])
+
+				Indicator.open({
+				  spinnerType: 'fading-circle'
+                });
+    
+				this.flightOrder.checkPrice(this).then((res) => {
+					Indicator.close();
+					let order = this.$store.getters.flightOrder;
+					order.serviceFee = res.cf;
+					//add baggageInfo to order as properties
+					order.addFilghtNumber(order,res.baggageInfo)
+
+					GetFlightOrderUtil.setOrderIntoSession(order,sessionStorage)
+
+					this.$router.push('book')
+				})
+				.catch((err) => {
+					this.showPopup=true;
+					Indicator.close();
+					console.log(err)
+					console.log(err.type)
+					console.log(typeof(err.type))
+					if(typeof(err.type)=="symbol"){
+						console.error(err)
+					}
+				})
+			},
+			refreshFlightDatesFromJson(json) {
+				
+				let companyDiscountItemList = []
+				let unionJson =[]
+				let departJson =[]
+				let returnJson =[]
+				let props = json.x.props
+				let rtd = json.x.rtd
+				
+				if(!Object.is(rtd, undefined)){
+					 unionJson = json.x.rtd.or
+					 departJson = json.x.rtd.o
+					 returnJson = json.x.rtd.r
+				
+				}
+				
+				_unionPolicy = new RoundTripUnionDiscountPolicy(
+					RoundTripUnionDiscountPolicy.getUnionDiscountItemList(unionJson, departJson, returnJson))
+				//this.departFlights
+				let departFlights  = new FlightFactory(json.departFlightArray).build(function (flight , companyDicount) {
+					companyDiscountItemList.push(new DiscountItem(flight.flightNumber, companyDicount))
+				})
+	
+				//this.returnFlights 
+				let returnFlights= new FlightFactory(json.returnFlightArray).build(function (flight , companyDicount) {
+					companyDiscountItemList.push(new DiscountItem(flight.flightNumber, companyDicount))
+				})
+				
+				
+				 //init ladder policy
+				 _ladderPolicy = new RoundTripLadderPolicy(props)
+				//init company policy
+				_companyPolicy = new RoundTripCompanyDiscountPolicy(companyDiscountItemList)
+				
+				_roundTripDiscountManager = new RoundTripDiscountManager(departFlights, returnFlights, 
+					[_unionPolicy, [_ladderPolicy, _companyPolicy]])
+
+				
+				_roundTripDiscountManager.firstCalculateDiscount()
+
+				
+				//departFlight
+				this.$store.commit(XFlight.getAllFlight,departFlights)
+				this.$store.commit(XFlight.selsectAllFlight,departFlights)
+				//returnFlight
+				this.$store.commit(XFlight.getAllReturnFlight,returnFlights)
+				this.$store.commit(XFlight.selsectReturnAllFlight,returnFlights)
+				 sessionStorage.flightType = "two"
+
+				this.displayedDepartFlights().sort((a,b)=>{
+					this.isDepartPrice.isSort=true;
+					return a.getPrice() - b.getPrice();
+				})
+				this.displayedReturnFlights().sort((a,b)=>{
+					this.isReturnPrice.isSort=true;
+					return a.getPrice() - b.getPrice();
+				})
+
+				this.displayedDepartFlights().forEach((el)=>{
+					let d = el.departDate;
+					let r = el.returnDate;
+					el.durationDays=r.getDate()-d.getDate();
+				})
+
+				this.displayedReturnFlights().forEach((el)=>{
+					let d = el.departDate;
+					let r = el.returnDate;
+					el.durationDays=r.getDate()-d.getDate();
+				})
+			},
+			onDepartItemClick(index){
+				
+				this.selectedDepartFlightIndex = index;
+			}, 
+			onReturnItemClick(index){
+
+				
+				this.selectedReturnFlightIndex = index;
+			},
+			onBothItemSelected () {
+			
+				let departFlight = this.displayedDepartFlights()[this.selectedDepartFlightIndex]
+				let returnFlight = this.displayedReturnFlights()[this.selectedReturnFlightIndex] 
+
+				 _roundTripDiscountManager.calculateDiscount(departFlight, returnFlight)
+				// console.log(departFlight)
+				
+			},
+			filter(filterOptions){
+				
+				this.filterOptions=filterOptions;
+			},
+			displayedDepartFlights(){
+				
+				return this.$store.getters.selectflightofall;
+			},
+			displayedReturnFlights(){
+				
+				return this.$store.getters.selectReturnFlightOfAll;
+			}
+
+		}, 
+		mounted(){
+			this.$store.commit(XFlight.getAllFlight,null)
+            this.$store.commit(XFlight.selsectAllFlight,null)
+            this.$store.commit(XFlight.getAllReturnFlight,null)
+            this.$store.commit(XFlight.selsectReturnAllFlight,null)
+			this.showLoad=true;
+			this.showPopup=false;
+            this.flightOrder.searchSuitableFlights(this).then((res) => {
+          
+				this.showLoad=false;
+				Indicator.close();
+				
+				this.refreshFlightDatesFromJson(res);
+				this.roundTripFilter = new RoundTripFilter()
+				
+				this.onBothItemSelected()
+            }).catch((err) => {
+             
+				this.showPopup=true;
+				console.log(err);
+			})
+		}
+	}
+</script>
+<style lang='less' scoped>
+	::-webkit-scrollbar {
+		display: none;
+	}
+	.item-def{
+		background: #fff !important;
+	}
+
+	.item-act{
+		background: #f2f2f2 !important;
+	}
+
+	.header{
+		background:#f7f7f8;
+		border-bottom:1px solid #ccc;
+		a{
+			display:block;	
+			width:1.2rem;
+			img{
+				width:1.2rem;
+				margin-top:50%;
+			}
+		}
+	}
+	 .title{
+	 	height:2.04rem;
+		.title-detail{
+			font-size:0.8rem;
+			color:#000;
+			height:0.8rem;
+			margin-top:-0.2rem;
+		}
+		.title-detail-ico{
+			width:0.64rem;
+			height:0.64rem;
+			display:inline-block;
+			background:url('../../../assets/images/re-flight_04.png') center no-repeat;
+			background-size:0.64rem;
+		}
+		.title-info{
+			font-size:0.56rem;
+			color:#ffad3d;
+			height:0.56rem;
+			padding-bottom:0.4rem;
+		}
+	} 
+	.total{
+		background:#333;
+		padding:2.4rem 0.68rem 0.4rem;
+		height:1.96rem;
+		color:#fff;
+		.total-cont{
+			height:1.79rem;
+			width:100%;
+			.total-amount{
+				font-size:0.68rem;
+				span{
+					display:block;
+					text-align:left;
+					line-height:1rem;
+				}
+			}
+			.total-price{
+				margin-left:-1.8rem;
+				.total-price-rs{
+					font-size:0.68rem;
+					text-align:left;
+					line-height:1rem;
+				}
+				.total-price-ecash{
+					font-size:0.5rem;
+					color:#f2f2f2;
+					line-height:1rem;
+				}
+			}
+			.booking{
+				display:block;
+				font-size:0.68rem;
+				color:#fff;
+				text-align:center;
+				line-height:0.94rem;
+				width:4.8rem;
+				height:0.94rem;
+				background-color:#ffad3d;
+				border-radius:4px;
+			}
+		}
+	}
+	.flight-from{
+		.flight-from-cont{
+			padding:0.4rem 0;
+			span{
+				width:50%;
+				text-indent:0.68rem;
+				text-align:left;
+				font-size:0.68rem;
+				color:#666;
+			}
+		}
+	}
+	.flight-detail{
+		position: absolute;
+    	top: 6.2rem;
+    	left: 0px;
+    	right: 0px;
+    	bottom: 0px;
+		.flight-detail-title{
+			height: 1.17rem;
+			.flight-title{
+				width:6.54rem;
+				padding:0.2rem 0.68rem;
+				background:#0b9d78;
+				border-radius:0.2rem;
+				span{
+					font-size:0.64rem;
+					color:#fff;
+					margin-top:1px;
+					cursor:pointer;
+					i{
+						margin-left:6px;
+						img{
+							width:0.3rem;
+						}
+					}
+				}
+			}
+		}
+		.flight-detail-cont{
+			position: absolute;
+    		top: 1.17rem;
+    		left: 0px;
+    		right: 0px;
+    		bottom: 0px;
+			.flight-detail-lists{
+				overflow:auto;
+			}
+			.flight-detail-track-depart, .flight-detail-track-return {
+				padding:0.4rem 0.69rem;
+				background-color:#fff;
+				border-bottom:1px solid #eee;
+				cursor:pointer;
+				.flight-detail-ico{
+					padding-right:0.2rem;
+					height:100%;
+					width:0.52rem;
+					img{
+						width:0.52rem;
+						display:block;
+					}
+				}
+				.flight-detail-info{
+					width:5.8rem;
+					.flight-number{
+						text-align:left;
+						font-size:0.4rem;
+						color:#666;
+					}
+					.flight-time{
+						padding:0.4rem 0;
+						font-size:0.68rem;
+						color:#000;
+						i{
+							font-size:0.52rem;
+						}
+					}
+					.flight-aside{
+						padding:0.2rem 0;
+						.line{
+							width:100%;
+							height:2px;
+							background-color:#ccc;
+							position:relative;
+							.round{
+								width:0.3rem;
+								height:0.3rem;
+								border-radius:50%;
+								background-color:#ccc;
+								position:absolute;
+								top:50%;
+								transform:translateY(-50%);
+							}
+							.round:nth-of-type(1){
+								left:0;
+							}
+							.round:nth-of-type(2){
+								right:0;
+							}
+						}
+					}
+					.flight-mileage{
+						font-size:0.4rem;
+						color:#666;
+						padding:0.2rem 0;
+					}
+					.flight-price{
+						.present-price{
+							font-size:0.68rem;
+							color:#ffad3d;
+							padding:0.2rem 0;
+							text-align:left;
+							span{
+								margin-right:0;
+							}
+						}
+						.past-price{
+							font-size:0.56rem;
+							color:#ccc;
+							padding:0.3rem 0.2rem;
+							text-align:left;
+							span{
+								margin-right:0;
+								text-decoration:line-through;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+</style>

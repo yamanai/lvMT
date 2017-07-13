@@ -1,0 +1,251 @@
+<template>
+	<div class="container-login flex content-center">
+		<div class="login">
+			<div class="logo">
+				<div class="logo-tit flex space-between">
+					<span></span>
+					<h2>Sign in</h2>
+					<span class="close" @click="showLog"></span>
+				</div>
+				<a v-show="false" id="facebook" @click="signinWithFacebookAccount"></a>
+				<!-- <a id="twitter"></a> -->
+			</div>
+			<div class="user">
+				<div class="username">
+					<input type="text" v-model="username" placeholder="Enter your email address">
+				</div>
+				<div class="psw">
+					<input type="password" v-model="password" placeholder="Enter your password">
+					<a href="#">Forgot?</a>
+				</div>
+			</div>
+			<div class="refer">
+				<div class="signin">
+					<a @click="sign">Sign in</a>
+				</div>
+				<div class="register">
+					<router-link to="/register">Sign up</router-link>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+<script>
+    import { Toast } from 'mint-ui'
+    import { Indicator } from 'mint-ui'
+    import { FaceBookApi, authories, loginStatus } from '../../models/facebookapi'
+    import { User } from '../../models/user'
+    import * as XUser from '../../vuex/models/user/XUser.js'
+    
+    var _fb = new FaceBookApi()
+    
+
+
+	export default{
+		data(){
+			return {
+				showLogin:false,
+                isLogin: false,
+                username: '',
+                password: ''
+			}
+		},
+		methods:{
+			showLog(){
+
+				this.$emit("hideLog",this.showLogin);
+			},
+			sign(){
+				let self = this;
+				if(Object.is(this.username.trim(), '')){
+					Toast({
+					  message: 'Please enter correct Email Adress',
+					  duration: 1000
+                    });
+                } else if (Object.is(this.password, '')) {
+					Toast({
+					  message: 'Plaese enter password',
+					  duration: 1000
+					});
+                } else {
+                	Indicator.open({
+					  spinnerType: 'fading-circle'
+					});
+                    User.login(self, self.username, self.password, true).then(res => {
+							res.json().then((jsonObj)=>{
+								if(jsonObj.success){
+									Indicator.close()
+                                    self.$router.push('/Account')
+								}else{
+									Indicator.close()
+									Toast(jsonObj.msg);
+								}
+							}).catch(err => console.log(err));
+							
+						}).catch(err => {
+							console.log(err);
+							Indicator.close();
+							Toast({
+							  message: 'Login failed',
+							  duration: 1000
+							});
+						});
+				}
+            },
+            signinWithFacebookAccount() {
+                _fb.getLoginStatus(response => {
+                    let status = response.status
+                    let athorObj = response.authResponse
+                    switch (status) {
+                        case loginStatus.CONNECTED:
+                            _fb.getUserInfo(res => {
+                                User.loginWithFacebookInfos(this, res.id, res.email, res.first_name, res.last_name)
+                            })
+                            break
+                        case loginStatus.AUTH_RESPONSE:
+                            _fb.getUserInfo(res => {
+                                User.loginWithFacebookInfos(this, res.id, res.email, res.first_name, res.last_name)
+                            })
+                            break
+                        default:
+                            _fb.login([authories.PUBLIC_PROFILE, authories.EMAIL], (res) => {
+                                _fb.getUserInfo(res => {
+                                    User.loginWithFacebookInfos(this, res.id, res.email, res.first_name, res.last_name)
+                                })
+                            })
+                            break
+                    }
+                })
+            }
+		}
+	}
+</script>
+<style lang="less" scoped>
+@import '../../../node_modules/mint-ui/lib/style.css';
+	.container-login{
+		width:100%;
+		height:100%;
+		position:fixed;
+		top:0;
+		z-index:20;
+		background-color:rgba(0,0,0,0.3);
+		padding-top:2.136rem;
+	}
+	.login{
+		background-color:#f0eff5;
+		border-radius:0.4rem;
+		padding:0 0.68rem;
+		height:20.04rem;
+		.logo-tit{
+			.close{
+				width:0.68rem;
+				height:2.05rem;
+				display:block;
+				background:url('../../assets/images/login/ic11.png') center no-repeat;
+				background-size:0.68rem;
+			}
+			h2{
+				font-size:0.769rem;
+				font-weight:bold;
+				line-height:2.05rem;
+			}
+		}
+		
+		.logo{
+				#facebook{
+					width:13.46rem;
+					height:1.8rem;
+					margin-top:0.6rem;
+					display:block;
+					background:url('../../assets/images/login/fbsignin.png') center no-repeat;
+					background-size:cover;
+					border-radius:0.2rem;
+				}
+				#twitter{
+					width:13.46rem;
+					height:1.8rem;
+					display:block;
+					background:url('../../assets/images/login/twsignin.png') center no-repeat;
+					background-size:cover;
+					margin-top:0.42rem;
+					border-radius:0.2rem;
+				}
+			}		
+		}
+	
+	.login:before{
+		content:'';
+		display:table;
+	}
+	.user{
+		padding-top:2rem;
+		input{
+			width:12rem;
+			height:1.8rem;
+			border-radius:4px;
+			padding-left:0.8rem;
+		}
+		.username {
+			margin-bottom:0.4rem;
+			input{
+				background:#fff url('../../assets/images/login/ic-12.png') 0.68rem center no-repeat;
+				background-size:0.9rem;
+			}
+		}
+		.psw{
+			position:relative;
+			input{
+				background:#fff url('../../assets/images/login/ic12.png') 0.68rem center no-repeat;
+				background-size:0.9rem;
+			}
+			a{
+				font-size:0.56rem;
+				color:#ffad3d;
+				position:absolute;
+				top:0.5rem;
+				right:2rem;
+				display:none;
+			}
+		}
+	}
+	::-webkit-input-placeholder{color:#fff;font-size:0.6rem;padding-left:1.2rem;}
+	::-moz-placeholder{color:#fff;font-size:0.6rem;padding-left:1.2rem;}
+	:-moz-placeholder{color:#fff;font-size:0.6rem;padding-left:1.2rem;}
+
+	.refer{
+		input{
+			width:12.8rem;
+			height:1.8rem;
+			border-radius:0.2rem;
+			color:#fff;
+			font-size:0.68rem;
+		}
+		.signin{
+			margin:2rem 0 0.4rem;
+			a{
+				background-color:#ffad3d;
+				width:12.8rem;
+				height:1.8rem;
+				line-height:1.8rem;
+				border-radius:0.2rem;
+				color:#fff;
+				font-size:0.68rem;
+				display:block;
+			}
+		}
+		.register{
+			a{	
+				font-size:0.68rem;
+				width:12.8rem;
+				height:1.8rem;
+				line-height:1.8rem;
+				border-radius:0.2rem;
+				background-color:#f0eff5;
+				border:1px solid #ffad3d;
+				color:#ffad3d;
+				display:inline-block;
+			}
+		}
+	}
+	
+</style>

@@ -1,0 +1,989 @@
+<template>
+    <div class="wrapper">
+        <transition enter-active-class="slideInLeft" leave-active-class="slideOutLeft">
+            <home-menu @closeMenu="closeMenu" class="animated menu" v-show="showMenu"></home-menu>
+        </transition>
+        <transition enter-active-class="fadeIn" leave-active-class="fadeOut">
+            <login class="animated" v-show="showLogin" @hideLog="hideLog"></login>
+        </transition>
+        <transition enter-active-class="fadeIn" leave-active-class="fadeOut">
+            <prompt class="prompt animated" v-show="showPrompt">
+                <h2 class="titles" slot="title">Search</h2>
+                <div slot="content" class="inputGroup">
+                    <input type="text" v-model="orderNumber" placeholder="order number">
+                </div>
+                <div slot="btn" class="choose">
+                    <mt-button @click="searchByOrderNo" class="btn" type="primary">Confirm</mt-button>
+                    <mt-button @click="showPrompt=false" class="btn" type="danger">Cancel</mt-button>
+                </div>
+            </prompt>
+        </transition>
+        <div class="mark" v-show="showCalendar"></div>
+        <transition enter-active-class="fadeInUp" leave-active-class="fadeOutDown">
+            <calendar :limit='limit' class="animated" v-show="showCalendar" @getVal="getVal"></calendar>
+        </transition>
+        <head-top>
+            <img slot="left" @click="$router.push('/search')" :src="heads.img" alt="" />
+            <img slot="title" class="flight_logo" :src="heads.img1" >
+            <img slot="right" @click="showLog" :src="heads.img2" alt="" />
+        </head-top>
+        <div class="content">
+            <div class="trip flex content-center align-items-center">
+                <div class="trip-btn flex space-between">
+                    <a id="oneway" :class="{active:isOne}" @click="showOne">One way</a>
+                    <a id="roundtrip" :class="{active:isRound}" @click="showRound">Round trip</a>
+                </div>
+            </div>
+            <div class="travel">
+                <div class="travel-group flex space-between clear">
+                    <span>From</span>
+                    <div class="travel-search" tabindex="0">
+                        <input v-model = "departAirportString" @focus="fromFocus" id="travel-from" ref="travelFrom" @keyup="watchFrom" 
+                               type="text" placeholder="Depart" />
+                        <a v-show="departAirportString!=''" @click="departAirportString=''" id="from-close" href="javascript:"></a>
+                        <ul v-if='suitableDepartAirports.length != 0' class="city from-city hide">
+                            <li v-for="airport in suitableDepartAirports" @click="setDepartAirport(airport)">{{ getAirplineDescription(airport) }}</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="travel-group flex clear">
+                    <span>To</span>
+                    <div class="travel-search" tabindex="0">
+                        <input v-model = "destinationAirportString" @focus="toFocus" id="travel-to" ref="travelTo" @keyup="watchTo" 
+                               type="text" placeholder="Destination" />
+                        <a v-show="destinationAirportString!=''" @click="destinationAirportString=''" id="to-close" href="javascript:"></a>
+                        <ul v-if='suitableDestinamtionAirports.length != 0' class="city to-city hide">
+                            <li v-for="airport in suitableDestinamtionAirports" @click="setDestiantionAirport(airport)">{{ getAirplineDescription(airport) }}</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="exchange">
+                    <img @click="swapAirports" :src="require('../../assets/images/home/ic3.png')" alt="" />
+                </div>
+            </div>
+            <div class="calendar">
+                <div class="calendar-tit flex space-between">
+                    <span>Depart</span>
+                    <span v-show="isRound">Return</span>
+                </div>
+                <div class="calendar-choose flex space-between">
+                    <input v-model="departTime" @click="openPickerFrom" type="text">
+                   <!--  <mt-datetime-picker ref="pickerFrom"
+                                        type="date"
+                                        cancelText="Cancel"
+                                        confirmText="OK"
+                                        :startDate="sDate"
+                                        v-model="departDate">
+                    </mt-datetime-picker> -->
+                    <input v-show="isRound" v-model="returnTime" @click="openPickerTo" type="text"/>
+                    <!-- <mt-datetime-picker ref="pickerTo"
+                                        type="date"
+                                        cancelText="Cancel"
+                                        confirmText="OK"
+                                        :startDate="eDate"
+                                        v-model="returnDate">
+                    </mt-datetime-picker> -->
+                </div>
+            </div>
+            <div class="selector">
+                <div class="selec-tit flex space-between">
+                    <span>Adult</span>
+                    <span>Child(2-11y)</span>
+                    <span>Infant(upto 2y)</span>
+                </div>
+                <div class="selec-con flex space-between">
+                    <div class="selec-group" 
+                    v-for='(v, k) in passengers' 
+                    tabindex="0" 
+                    @blur="hideSelec(k)" 
+                    @click="clickPassengerListForIndex(k)">
+                        <span class="count">{{v}}</span>
+                        <ul v-if='isViewExtend[k]'>
+                            <li v-for="item in passengerRangeMap()[k]" @click='clickPassengerNum(k, item)'>{{item}}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="choose-class flex space-between">
+                <span class="class-tit">Class</span>
+                <div class="selec-group" @click="showClass" tabindex="0" @blur="hideClass" >
+                    <span class="classOption">{{CabinClassUtil.getClassString(selectedCabinClass)}}</span>
+                    <ul class="hide">
+                        <li v-for="clazz in cabinClasses" @click="setCabinClass(clazz)">{{CabinClassUtil.getClassString(clazz)}}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="searchFlight">
+                <div class="flex content-center">
+                    <a @click="searchFlight">Search flights</a>
+                </div>
+            </div>
+        </div>
+        <codes v-show="isCode" @close="closeCode"></codes>
+    </div>
+</template>
+
+<script>
+    import headTop from '../../components/head/head.vue'
+    import codes from '../../components/code/code.vue'
+    import homeMenu from '../menu/menu.vue'
+    import login from '../login/login.vue'
+    import prompt from '../../components/prompt/prompt.vue'
+    import calendar from '../../components/calendar/calendar.vue'
+    import { Indicator, Toast } from 'mint-ui'
+    import { bus } from '../../main.js'
+    import localAirportJson from './child/city.json'
+
+    import { FlightOrder, OnewayOrder, RoundTripOrder } from '../../models/flightorder'
+    import { Airport } from '../../models/airport'
+    import { First, PremiumEconomy, Business, Economy, CabinClass } from '../../models/cabinclass'
+    import { CabinClassUtil, AirportSearcher, CookieUtil, SHA2Util,GetFlightOrderUtil } from '../../models/utils'
+    import { Passenger, Adult, Child, Infant, PassengerManager, ContactInfo } from '../../models/passenger'
+    import * as OrderMutaionNames from '../../vuex/models/flightorder/MutationName.js'
+     import * as XFlight from '../../vuex/models/flight/XFlight.js'
+    import { Coupon } from '../../models/coupon'
+   
+    //import {TimeFormatUtil} from '../../models/utils'
+
+    /**
+    get the local ariports
+    **/
+    function loadLocalStoragedAirorts() {
+        let res = [];
+        for (let a of localAirportJson) {
+            res.push(Airport.getInstanceFromJson(a))
+        }
+        return res;
+    }
+
+    function getAirpotByAitaCode(code) {
+        let des;
+        for (let a of _airports) {
+            if (a.iataCode == code) {
+                des = a;
+            }
+        }
+        return des
+    }
+    let _airports = loadLocalStoragedAirorts()
+    let _airportSearcher = new AirportSearcher(_airports)
+
+    let _cabinClasses = [
+        new Economy(),
+        new Business(),
+        new First(),
+        new PremiumEconomy()
+    ]
+    const _passengersNames = {
+        adults: 'adult',
+        children: 'children',
+        infants: 'infants'
+    }
+    export default {
+        components: {
+            headTop,
+            codes,
+            homeMenu,
+            login,
+            prompt,
+            calendar
+        },
+        data() {
+            return {
+                limit:{
+                      minYear:new Date().getFullYear(),
+                      minMonth: new Date().getMonth(),
+                      minDay: new Date().getDate(),
+                      maxYear: new Date().getFullYear()+1
+                },
+                isViewExtend: {
+                    [_passengersNames.adults]: false,
+                    [_passengersNames.children]: false,
+                    [_passengersNames.infants]: false
+                },
+                CabinClassUtil,
+                showPrompt: false,
+                isOne: true,
+                isRound: false,
+                isCode: false,
+                showMenu: false,
+                showLogin: false,
+                sDate: new Date(),
+                showFromClose:false,
+                showToClose:false,
+                showCalendar:false,
+                heads: {
+                    img: require('../../assets/images/home/ic333.png'),
+                    img1: require('../../assets/images/home/app-homelogo.png'),
+                    img2: require('../../assets/images/home/ic2.png')
+                },
+                passengers: {
+                    [_passengersNames.adults]: 1,
+                    [_passengersNames.children]: 0,
+                    [_passengersNames.infants]: 0
+                },
+                mSelectedDepartAirport: null,
+                mSelectedDestinationAirport: null,
+                cabinClasses: _cabinClasses,
+                mSelectedCabinClass: _cabinClasses[0],
+                classOptions: 'Economy',
+                returnDate: new Date(),
+                departDate: new Date(),
+                currentTarget:'DEPART',
+                info: {
+                    tripType: '',
+                    from: '',
+                    to: '',
+                    fromAbb: '',
+                    toAbb: '',
+                    departDate: '',
+                    returnDate: ''
+                },
+                cityObj: {
+                    fromCity: {},
+                    toCity: {}
+                },
+                cityList: [],
+                departAirportString: '' ,
+                destinationAirportString: '' ,
+                orderNumber: ""
+            }
+        },
+        computed: {
+
+            flight() {
+
+                if (this.isOne) {
+                    this.info.tripType = 0;
+                    return "/oneway"
+                } else {
+                    this.info.tripType = 1;
+                    return "/roundtrip"
+                }
+
+            },
+            selectedDepartAirport: {
+                get: function () {
+                    return this.mSelectedDepartAirport
+                },
+                set: function (airport) {
+                    this.departAirportString = airport.iataCode
+                    this.mSelectedDepartAirport = airport
+                }
+            },
+            selectedDestinationAirport: {
+                get: function () {
+                    return this.mSelectedDestinationAirport
+                },
+                set: function (airport) {
+                    this.destinationAirportString = airport.iataCode
+                    this.mSelectedDestinationAirport = airport
+                }
+            },
+            selectedCabinClass: {
+                get: function () {
+                    return this.mSelectedCabinClass
+                },
+                set: function (clazz) {
+                    this.mSelectedCabinClass = clazz
+                }
+            },
+            suitableDepartAirports() {
+                let res = _airportSearcher.getSuitableAirports(this.departAirportString)
+                return res
+            },
+            suitableDestinamtionAirports() {
+                return _airportSearcher.getSuitableAirports(this.destinationAirportString)
+            },
+            tocityLists() {
+                let arr = [];
+                let _this = this;
+                _this.cityObj.toCity = {};
+                _this.cityList.forEach((el) => {
+                    for (let item in el) {
+                        if (_this.info.to == '') {
+                            return;
+                        }
+                        if (new RegExp(_this.info.to, 'ig').test(el[item])) {
+                            _this.cityObj.toCity = el;
+                            arr.push(el[item]);
+                        }
+                    }
+
+                })
+                return arr;
+            },
+            eDate(){
+                return this.departDate;
+            },
+            departTime: {
+                get() {
+                    let arr = this.departDate.toString().split(" ");
+                    let arr2 = new Date(this.departDate);
+                    arr = arr.slice(0, 1).join() + ", " + arr.slice(2, 3).join() + " " + arr.slice(1, 2).join() + ", " + arr.slice(3, 4).join();
+                    arr2 = arr2.getFullYear() + "-" + arr2.getMonth() + 1 + "-" + arr2.getDate();
+                    this.info.departDate = arr2;
+                    return arr;
+                },
+                set(arr) {
+                    this.departDate = arr;
+                }
+            },
+            returnTime: {
+                get() {
+                    let arr = this.returnDate.toString().split(" ");
+                    let arr2 = new Date(this.returnDate);
+                    arr = arr.slice(0, 1).join() + ", " + arr.slice(2, 3).join() + " " + arr.slice(1, 2).join() + ", " + arr.slice(3, 4).join();
+                    arr2 = arr2.getFullYear() + "-" + arr2.getMonth() + 1 + "-" + arr2.getDate();
+                    this.info.returnDate = arr2;
+                    return arr;
+                },
+                set(arr) {
+                    this.returnDate = arr;
+                }
+            }
+        },
+        methods: {
+            getVal(dateVal,showCalendar){
+                this.showCalendar = showCalendar;
+                switch(this.currentTarget){
+                    case 'DEPART':
+                        this.departDate = dateVal;
+                        break;
+                    case 'RETURN':
+                        this.returnDate = dateVal;
+                }
+            },
+            passengerRangeMap() {
+                let res = {
+                    [_passengersNames.adults]: this.getIntArr(1, 9),
+                    [_passengersNames.children]: this.getIntArr(0, (9 - this.passengers[_passengersNames.adults])),
+                    [_passengersNames.infants]: this.getIntArr(0, this.passengers[_passengersNames.adults])
+                }
+                return res
+            },
+            orderDetail() {
+                this.showPrompt = true;
+            },
+            searchByOrderNo() {
+                if (this.orderNumber.trim() == "") {
+
+                    Toast({
+                      message: 'Please enter the order number',
+                      duration: 1000
+                    });
+
+                } else {
+
+                    this.$router.push({ path: '/orderDetail', query: { orderNumber: this.orderNumber } });
+                }
+            },
+            swapAirports() {
+                let temp = this.mSelectedDepartAirport
+                this.mSelectedDepartAirport = this.mSelectedDestinationAirport
+                this.mSelectedDestinationAirport = temp
+            },
+            formatPassengerNum(passengerRangeMap) {
+
+                let childArr = passengerRangeMap[_passengersNames.children]
+                let infantArr = passengerRangeMap[_passengersNames.infants]
+                let cIndex = childArr.length - 1
+                let iIndex = infantArr.length - 1
+
+                let maxChildNum = childArr[cIndex]
+                let maxInfantNum = infantArr[iIndex]
+                if (this.passengers.children > maxChildNum) {
+                    this.passengers.children = maxChildNum
+                }
+                if (this.passengers.infants > maxInfantNum) {
+                    this.passengers.infants = maxInfantNum
+                }
+            },
+            clickPassengerNum(key, num) {
+                this.passengers[key] = num
+            },
+            clickPassengerListForIndex(key) {
+                if (!this.isViewExtend[key]) {
+                    this.hideAllExtendableView()
+                    this.isViewExtend[key] = true
+                } else {
+                    this.isViewExtend[key] = false
+                }
+            },
+            hideSelec(k){
+                this.isViewExtend[k] = false;
+            },
+            hideAllExtendableView() {
+                for (let name in _passengersNames) {
+                    this.isViewExtend[name] = false
+                }
+            },
+            getIntArr: function (start, end) {
+                let res = []
+                if (end < start) {
+                    console.error("Wrong range");
+                }
+                for (let i = start; i <= end; i++) {
+                    res.push(i)
+                }
+                return res
+            },
+            openPickerFrom(event) {
+                event.toElement.blur();
+                this.showCalendar = true;
+                this.currentTarget = 'DEPART';
+            },
+            openPickerTo(event) {
+                event.toElement.blur();
+                this.showCalendar = true;
+                this.currentTarget = 'RETURN'
+            },
+            searchFlight() {
+
+                sessionStorage.removeItem("order")
+                sessionStorage.removeItem("flightType")
+                
+                let order = null
+                let reindexPath = ''
+                if (this.isOne) {
+                    reindexPath = 'oneway'
+                    order = new OnewayOrder()
+                } else {
+                    reindexPath = 'roundtrip'
+                    order = new RoundTripOrder()
+                    order.returnDate = this.returnDate
+                }
+                order.departAirport = this.mSelectedDepartAirport
+                //this.mSelectedDepartAirport.set()
+                
+                order.destinationAirport = this.mSelectedDestinationAirport
+                order.departDate = this.departDate
+                
+                for (let key in this.passengers) {
+                    switch (key) {
+                        case _passengersNames.adults:
+                            for (let i = 0; i < this.passengers[key]; i++) {
+                                order.adults.push(new Adult())
+                            }
+                            break;
+                        case _passengersNames.children:
+                            for (let i = 0; i < this.passengers[key]; i++) {
+                                order.children.push(new Child())
+                            }
+                            break;
+                        case _passengersNames.infants:
+                            for (let i = 0; i < this.passengers[key]; i++) {
+                                order.infants.push(new Infant())
+                            }
+                            break;
+                    }
+                }
+                order.cabinClass = this.mSelectedCabinClass
+                //add contacInfo
+                order.contactInfo = new ContactInfo()
+                 this.$store.commit(OrderMutaionNames.setupOrder, order)
+                  GetFlightOrderUtil.setOrderIntoSession(order,sessionStorage)
+                // sessionStorage.setItem('order',JSON.stringify(order));
+
+                if(this.mSelectedDestinationAirport.countryCode=="IN" && this.mSelectedDepartAirport.countryCode=="IN"){
+                     location.hash=reindexPath;
+                     this.$router.push(reindexPath);
+                }else{
+                   Toast({
+                      message: "Int'l flights will be coming soon",
+                      duration: 1000
+                    });
+                }
+                
+            },
+            hideLog(hideLogin) {
+                this.showLogin = hideLogin;
+            },
+            showLog() {
+                let cu = new CookieUtil(document)
+
+                if (cu.hasItem('uuid')) {
+                    this.$router.push('/Account')
+                } else {
+                    this.showLogin = true;
+                }
+            },
+            showOne() {
+                this.isOne = true;
+                this.isRound = false;
+            },
+            showRound() {
+                this.isOne = false;
+                this.isRound = true;
+            },
+            exchange() {
+                let $val = this.departAirportString;
+                
+                this.departAirportString = this.destinationAirportString;
+                this.destinationAirportString = $val;
+            },
+            showLi(index) {
+                let $ul = $(".selec-group").eq(index).children('ul');
+                if ($ul.hasClass('hide')) {
+                    $ul.removeClass('hide');
+                } else {
+                    $ul.addClass('hide');
+                }
+            },
+            showClass() {
+                let $ul = $(".choose-class").find("ul");
+                if ($ul.hasClass('hide')) {
+                    $ul.removeClass('hide');
+                } else {
+                    $ul.addClass('hide');
+                }
+            },
+            hideClass(){
+                $(".choose-class").find("ul").addClass('hide');
+            },
+            setCabinClass(clazz) {
+                this.mSelectedCabinClass = clazz;
+            },
+            closeCode(isCode) {
+                this.isCode = isCode;
+            },
+            showM() {
+                this.showMenu = true;
+            },
+            closeMenu(closeMenu) {
+                this.showMenu = closeMenu;
+            },
+            setDepartAirport(airport) {
+                this.selectedDepartAirport = airport
+
+                //this.info.from=$('.from-city li').eq(idx).html();
+                $('.from-city').addClass('hide');
+                $('.from-city').css('zIndex', '-1');
+            },
+            setDestiantionAirport(airport) {
+                this.selectedDestinationAirport = airport
+                //	this.info.to=$('.to-city li').eq(index).html();
+                $('.to-city').addClass('hide');
+                $('.to-city').css('zIndex', '-1');
+            },
+            fromFocus(){
+                this.departAirportString="";
+                this.$refs.travelFrom.select();
+                this.showFromClose=true;
+            },
+            toFocus(){
+                this.destinationAirportString="";
+                this.$refs.travelTo.select();
+                this.showToClose=true;
+            },
+            watchFrom() {
+                if ($('.from-city li').length != 0) {
+                    $('.from-city').removeClass('hide');
+                    $('.from-city').css('zIndex', '5');
+                } else {
+                    $('.from-city').css('zIndex', '-1');
+                }
+
+            },
+            watchTo() {
+                if ($('.to-city li').length != 0) {
+                    $('.to-city').removeClass('hide');
+                    $('.to-city').css('zIndex', '5');
+                } else {
+                    $('.to-city').css('zIndex', '-1');
+                }
+            },
+            /**
+             * 
+             * @param {Airport} airport
+             */
+            getAirplineDescription(airport) {
+                return airport.iataCode + ', ' + airport.cityName + ', ' + airport.countryName 
+            },
+
+            /**
+             * 
+             * @param {string} inputName
+             * @param {Airport} selectedAirport
+             */
+            getCheckedAirportName(inputName, selectedAirport) {
+                let airportDes = this.getAirplineDescription(selectedAirport)
+                if (Object.is(inputName, airportDes)) {
+                    return inputName
+                } else {
+                    return airportDes
+                }
+            },
+            onDestinationAirportInputBlur(inputValue) {
+                this.destinationAirportString = this.getCheckedAirportName(inputValue, this.mSelectedDestinationAirport)
+            },
+            onDepartAirportInputBlur(inputValue) {
+                this.departAirportString = this.getCheckedAirportName(inputValue, this.mSelectedDepartAirport)
+            }
+        },
+        watch: {
+            /**
+             * 
+             * @param {Airport} val
+             * @param {Airport} old
+             */
+            mSelectedDepartAirport(val, old) {
+                
+                this.departAirportString = this.getAirplineDescription(val)
+            },
+            /**
+             * 
+             * @param {Airport} val
+             * @param {Airport} old
+             */
+            mSelectedDestinationAirport(val, old) {
+                
+                this.destinationAirportString = this.getAirplineDescription(val)
+            }
+        },
+        mounted() {
+            Indicator.close();
+            
+            // init airports
+            this.mSelectedDepartAirport = getAirpotByAitaCode('DEL')
+            this.mSelectedDestinationAirport = getAirpotByAitaCode('BOM')
+
+        }
+
+    }
+</script>
+<style lang='less' scoped>
+    @import '../../../node_modules/mint-ui/lib/style.css';
+    .prompt {
+        width: 100%;
+        position: fixed;
+        z-index: 30;
+        .titles
+
+    {
+        font-size: 0.768rem;
+        color: #333;
+    }
+
+    .inputGroup {
+        input
+
+    {
+        height: 1.2rem;
+        border: 1px solid #ccc;
+    }
+
+    }
+
+    .choose {
+        .btn
+
+    {
+        width: 2.6rem;
+        height: 1.2rem;
+        font-size: 0.52rem;
+    }
+
+    }
+    }
+
+    .menu {
+        -webkit-animation-duration: .8s;
+        animation-duration: .8s;
+        -webkit-animation-fill-mode: both;
+        animation-fill-mode: both;
+    }
+    .flight_logo{
+        width:6.4rem;
+    }
+    .wrapper {
+        background: url('../../assets/images/home/home.png') center no-repeat;
+        background-size: cover;
+        background-position: 50% 50%;
+        overflow-y:auto;
+        -webkit-overflow-scrolling :touch;
+    }
+
+        .wrapper::before {
+            content: '';
+            display: table;
+        }
+
+    .content {
+        padding: 0 0.68rem;
+    }
+
+    .trip {
+        padding: 0.68rem;
+        margin-top: 2.04rem;
+        .trip-btn
+
+    {
+        width: 9.787rem; /* 230px  */
+        height: 1.276rem; /* 30px */
+        border: 1px solid #ffad3d;
+        border-radius: 2px;
+        a
+
+    {
+        width: 50%;
+        height: 100%;
+        font-size: 0.68rem; /* 16px */
+        color: #fff;
+        line-height: 1.276rem;
+        text-align: center;
+        display: block;
+    }
+
+    .active {
+        background-color: #ffad3d;
+        color: #fff;
+    }
+
+    }
+    }
+
+    .travel {
+        position: relative;
+        .travel-group
+
+    {
+        background-color: rgba(255,255,255,.6);
+        margin-bottom: 0.6rem;
+        border-radius:0.2rem;
+        span
+
+    {
+        float: left;
+        width: 20%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        font-size: 0.769rem;
+        color: #333;
+        background-color: rgba(255,255,255,.7);
+       
+    }
+
+    .travel-search {
+        width:80%;
+        float: left;
+        height: 2.09rem;
+        position: relative;
+    }
+
+    input {
+        width: 100%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        font-size: 0.768rem;
+        background-color: transparent;
+    }
+    #from-close,#to-close{
+        display:block;
+        position:absolute;
+        right:0.2rem;
+        top:0.8rem;
+        background:url('../../assets/images/home/close.png') center no-repeat;
+        background-size:0.6rem;
+        width:0.68rem;
+        height:0.68rem;
+    }
+
+    .city {
+        position: absolute;
+        width: 100%;
+        height: 5rem;
+        overflow:scroll;
+        top: 2.09rem;
+        left: 0;
+        z-index: -1;
+        li
+
+    {
+        font-size: 0.6rem;
+        width: 100%;
+        height: 1.2rem;
+        line-height: 1.2rem;
+        text-align: left;
+        text-indent: 1.2rem;
+        overflow: hidden;
+        background-color: rgba(255,255,255,.8);
+        cursor:pointer;
+    }
+
+    }
+    }
+
+    .exchange {
+        position: absolute;
+        top: 50%;
+        right: 1.02rem;
+        transform: translateY(-50%);
+        -webkit-transform: translateY(-50%);
+        cursor:pointer;
+        img
+
+    {
+        width: 1.666rem;
+    }
+
+    }
+    }
+
+    .calendar {
+        width:100%;
+        .calendar-tit,.calendar-choose
+
+    {
+        width: 100%;
+    }
+
+    input {
+        font-size: 0.68rem;
+        width:48%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        text-indent: 0;
+        text-align: center;
+        background-color: rgba(255,255,255,.6);
+    }
+
+    span {
+        font-size: 0.68rem;
+        color: #fff;
+        width: 48%;
+        padding: 0 0 0.42rem;
+        text-align: left;
+    }
+
+    }
+
+    .selector {
+        .selec-tit
+
+    {
+        span
+
+    {
+        font-size: 0.6rem;
+        color: #fff;
+        width: 4.7rem;
+        padding: 0.42rem 0;
+        text-align: left;
+    }
+
+    }
+
+    .selec-con {
+        .selec-group
+
+    {
+        width:30%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        position: relative;
+        cursor:pointer;
+        span
+
+    {
+        font-size: 0.68rem;
+        width:100%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        border-radius: 0.2rem;
+        background: rgba(255,255,255,.6) url('../../assets/images/home/ic6.png') 90% center no-repeat;
+        background-size: 0.5rem;
+    }
+
+    ul {
+        width:100%;
+        height:6rem;
+        position: absolute;
+        top: 2.2rem;
+        left: 0;
+        z-index: 10;
+        overflow:scroll;
+        border-radius:0.2rem;
+        li
+
+    {
+        font-size: 0.6rem;
+        width: 100%;
+        height: 1rem;
+        line-height: 1rem;
+        background-color: rgba(255,255,255,0.8);
+    }
+
+    }
+    }
+    }
+    }
+
+    .choose-class {
+        background-color: rgba(255,255,255,.6);
+        margin-top: 0.68rem;
+        border-radius:0.2rem;
+        .class-tit
+
+    {
+        width: 20%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        font-size: 0.769rem;
+        color: #333;
+        background-color: rgba(255,255,255,.7);
+    }
+
+    .selec-group {
+        width: 80%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        font-size: 0.68rem;
+        background-color: transparent;
+        position: relative;
+        cursor:pointer;
+        span
+
+    {
+        width: 100%;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        border-radius: 0.2rem;
+        background-size: 0.5rem;
+    }
+
+    ul {
+        width:100%;
+        position: absolute;
+        top: 2.09rem;
+        left: 0;
+        li
+
+    {
+        width: 100%;
+        height: 1rem;
+        line-height: 1rem;
+        background-color: rgba(255,255,255,0.8);
+    }
+
+    }
+    }
+    }
+
+    .searchFlight {
+        padding: 1.15rem 0;
+        a
+
+    {
+        width:100%;
+        font-size: 0.769rem;
+        color: #fff;
+        height: 2.09rem;
+        line-height: 2.09rem;
+        background-color: #ffad3d;
+        border-radius: 0.2rem;
+        display: block;
+    }
+
+    }
+</style>

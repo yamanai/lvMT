@@ -1,0 +1,299 @@
+<template>
+	<div class="wrapper">
+		<head-top class="header">
+			<img slot="left" :src="require('../../../assets/images/flight-prev.png')" class="prev" @click="$router.push('/traveller')">
+			<div slot="title" class="title">passenger</div>
+		</head-top>
+		<transition enter-active-class="fadeIn" leave-active-class="fadeOut">
+			<div class="animated mark" v-show="showCalendar"></div>
+		</transition>
+        <transition enter-active-class="fadeInUp" leave-active-class="fadeOutDown">
+            <calendar :limit='limit' class="animated" v-show="showCalendar" @getVal="getVal"></calendar>
+        </transition>
+		<div class="container">
+			<h2>Passenger</h2>
+			<div class="detail-info">
+				<ul>
+					<li class="flex space-between" @click="selec">
+						<span class="tit">Gender</span>
+						<div class="selec">
+							{{titValue}}
+							<ul v-show="showSelec">
+								<li v-for="(item,index) in options" @click="titValue=item">{{item}}</li>
+							</ul>
+						</div>
+						<span class="sel"></span>
+					</li>
+					<li class="flex space-between">
+						<span class="tit">Given Name</span>
+						<input type="text" v-model="firstName">
+						<span class="dd"></span>
+					</li>
+					<li class="flex space-between">
+						<span class="tit">Surname</span>
+						<input type="text" v-model="lastName">
+						<span class="dd"></span>
+					</li>
+					<li class="flex space-between" v-show="showDateBirth" @click="openPicker">
+						<span class="tit">Date of Birth</span>
+						<input type="text" v-model="departTime" @click="openPicker">
+						<!-- <mt-datetime-picker
+						    ref="picker"
+						    type="date"
+						    cancelText="Cancel"
+						    confirmText="OK"
+						    v-model="dateValue">
+						</mt-datetime-picker> -->
+						<span class="sel"></span>
+					</li>
+				</ul>
+			</div>
+			<div class="done">
+				<mt-button class="done" type="danger" @click="onDone">Done</mt-button>
+			</div>
+		</div>
+	</div>
+</template>
+<script>
+import headTop from '../../../components/head/head.vue'
+import Calendar from '../../../components/calendar/calendar.vue'
+import {GetFlightOrderUtil } from '../../../models/utils'
+	export default{
+		components:{
+			headTop,
+			Calendar
+		},
+		data(){
+			return {
+				limit:{
+		              maxYear: new Date().getFullYear(),
+		              maxMonth: new Date().getMonth()+1,
+		              maxDay: new Date().getDate()
+		        },
+				showCalendar:false,
+				dateValue:new Date(),
+				titValue:'Male',
+				firstName:'',
+				lastName:'',
+				showtit:false,
+				showDateBirth:true,
+				showSelec:false,
+				options:['Male','Female'],
+				slots: [
+			        {
+			          values: ['Male','Female'],
+			          className: 'slot1',
+			          textAlign: 'center'
+			        }
+			      ]
+			}
+		},
+		computed:{
+			departTime:{
+				get(){
+					let arr=this.dateValue.toString().split(" ");
+					arr=arr.slice(0,1).join()+", "+arr.slice(2,3).join()+" "+arr.slice(1,2).join()+", "+arr.slice(3,4).join();
+					return arr;
+				},
+				set(arr){
+					this.dateValue=arr;
+				}
+			},
+			getOrder(){
+				let order = GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+				return order
+			}
+		},
+		mounted(){
+   				let index = this.$route.query.index;
+				let humanType = this.$route.query.humanType;
+				let order = this.getOrder
+
+				let person  =null;
+				if(humanType==1){
+					person  =order.adults[index];
+				}else if(humanType==2){
+					person  =order.children[index];
+				}else if(humanType==3){
+					person  =order.infants[index];
+				}
+					if(typeof(person.title)!="undefined" &&person!=null ){
+					
+						this.titValue = person.title;
+					}
+				 	if(typeof(person.firstname)!="undefined" && person!=null ){
+						this.firstName=person.firstname ;
+				 	}
+					if(typeof(person.lastname)!="undefined" && person!=null ){
+						this.lastName=person.lastname;
+					}
+					if(typeof(person.birthday)!="undefined" && person!=null ){
+						this.dateValue = person.birthday;
+					}	
+				this.dateValue = new Date();	
+  		},
+  		created:function(){
+  			let order = this.getOrder
+  			let flightShortName = order.departFlight.airline.shortname;
+			let humanType = this.$route.query.humanType;
+  			if(flightShortName.trim()!="I5" && humanType==1){
+  				this.showDateBirth = false;
+  			}
+  		},
+		methods:{
+			openPicker(event) {
+				event.toElement.blur();
+		        this.showCalendar = true;
+		      },
+	       getVal(dateVal,showCalendar){
+            this.showCalendar = showCalendar;
+            this.dateValue = dateVal;
+            },
+			selec(){
+				this.showSelec=this.showSelec?false:true;
+			},
+			onDone(){
+
+				let index = this.$route.query.index;
+				let humanType = this.$route.query.humanType;
+				let person  =null;
+				let order = this.getOrder
+				if(humanType==1){
+					person  =order.adults[index];
+				}else if(humanType==2){
+					person  =order.children[index];
+					person.symbel = "child_"+index
+				}else if(humanType==3){
+					person  =order.infants[index];
+					person.symbel = "infants_"+index
+				}
+				if(person!=null){
+					if(this.titValue instanceof(Array)){
+						person.title   = this.titValue[0];
+					}else{
+						person.title   = this.titValue;
+					}
+					let flightShortName = order.departFlight.airline.shortname;
+					if(flightShortName.trim()!="I5" && humanType==1){
+						person.birthday = "";
+					}else{
+						person.birthday = this.dateValue;
+					}
+					person.firstname = this.firstName;
+					person.lastname =this.lastName;
+					
+				}
+				GetFlightOrderUtil.setOrderIntoSession(order,sessionStorage)	
+				this.$router.push('/Traveller')//go(-1)
+			}
+		}
+
+	}
+			
+</script>
+<style lang="less" scoped>
+	.mint-popup-bottom {
+		width:100%;
+	}
+	.header{
+		background:#f7f7f8;
+		border-bottom:1px solid #ccc;
+		
+		.title{
+			line-height:2.04rem;
+			font-size:0.768rem;
+			color:#000;
+		}
+	}
+	.container{
+		padding:0 0.68rem;
+		overflow:auto;
+	}
+	h2{
+		font-size:0.769rem;
+		color:#666;
+		text-indent:0.68rem;
+		font-weight:normal;
+		text-align:left;
+		line-height:1.45rem;
+		padding-top:2.24rem;
+	}
+	.detail-info{
+		background-color:#fff;
+		border-radius:0.6rem;
+		li{
+			font-size:0.68rem;
+			color:#999;
+			line-height:1.92rem;
+			border-bottom:1px solid #eee;
+			padding:0 0.68rem;
+			cursor:pointer;
+			.selec{
+				width:8rem;
+				color:#666;
+				text-align:left;
+				position:relative;
+				ul{
+					position:absolute;
+					left:0;
+					top:1.92rem;
+					width:100%;
+					background-color:#fff;
+					box-shadow:1px 1px 2px #ccc;
+					li{
+						width:100%;
+						text-align:left;
+						padding-left:0.4rem;
+						color:#666;
+					}
+				}
+			}
+			select{
+					width:8rem;
+					border: 0; 
+					background: transparent;
+					appearance:none;
+					-moz-appearance:none;
+					-webkit-appearance:none;
+					font-size:0.68rem;
+					color:#999;
+					option{
+						border:0;
+					}
+				}
+			.sel{
+				width:0.6rem;
+				display:inline-block;
+				background:url('../../../assets/images/book/detail_next.png') center no-repeat;
+				background-size:0.6rem;
+			}
+			.dd{
+				width:0.6rem;
+				display:inline-block;
+			}
+			.tit{
+				width:4.6rem;
+				text-align:left;
+			}
+			input{
+				font-size:0.68rem;
+				width:7rem;
+				margin-left:-2rem;
+				background-color:#fff;
+				text-indent:0.6rem;
+			}
+		}
+	}
+	.done{
+		.done{
+			width:100%;
+			font-size:0.768rem;
+			color:#fff;
+			height:1.87rem;
+			margin-top:6rem;
+			border-radius:6px;
+			background-color:#ffad3d;
+			display:inline-block;
+		}
+	}
+</style>

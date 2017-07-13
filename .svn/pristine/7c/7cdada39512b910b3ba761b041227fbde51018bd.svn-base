@@ -1,0 +1,300 @@
+<template>
+    <div class="wrapper">
+        <head-top class="header">
+            <img slot="left" :src="require('../../../assets/images/flight-prev.png')" class="prev"
+                 @click="$router.go(-1)">
+            <div slot="title" class="title">Traveller Information</div>
+        </head-top>
+        <mt-popup
+                v-model="showPopup"
+                popup-transition="popup-fade"
+                modal="true"
+                closeOnClickModal="false">
+            <failure>
+                <div slot="head">Age is wrong</div>
+                <p v-for="(item,index) in errorMassages" slot="content"><strong>{{index+1}}</strong>.{{item}}</p>
+                <!-- //<p slot="content">{{errorInfantMsg}}</p> -->
+                <mt-button @click="showPopup=false" slot="btn" class="btn" type="default">Ok</mt-button>
+            </failure>
+        </mt-popup>
+        <div class="container">
+            <h2>Traveller Information</h2>
+            <div class="traveller-info" v-if="flightOrder!=null">
+                <ul>
+                    <li class="flex space-between align-items-center" @click="getTraveller(index,1)"
+                        v-for="(item,index) in flightOrder.adults">
+                        <span v-if="item.firstname!=undefined &&item.lastname!='' ">{{item.firstname}} {{item.lastname}}</span>
+                        <span v-else>add details for adult {{index+1}}</span>
+                        <span class="sel"></span>
+                    </li>
+                    <li class="flex space-between align-items-center" @click="getTraveller(index,2)"
+                        v-for="(item,index) in flightOrder.children">
+                        <span v-if="item.firstname!=undefined &&item.lastname!='' ">{{item.firstname}} {{item.lastname}}</span>
+                        <span v-else>add details for children {{index+1}}</span>
+                        <span class="sel"></span>
+                    </li>
+                    <li class="flex space-between align-items-center" @click="getTraveller(index,3)"
+                        v-for="(item,index) in flightOrder.infants">
+                        <span v-if="item.firstname!=undefined &&item.lastname!='' ">{{item.firstname}} {{item.lastname}}</span>
+                        <span v-else>add details for infants {{index+1}}</span>
+                        <span class="sel"></span>
+                    </li>
+                </ul>
+            </div>
+            <h2>Contact Information</h2>
+            <div class="contact-info">
+                <ul>
+                    <li>
+                        <label for="mobile">Name</label>
+                        <input type="text" v-model="contactName" name="contactName" id="contactName">
+                    </li>
+                    <li>
+                        <label for="mobile">Mobile</label>
+                        <input type="text" v-model="mobile" name="mobile" id="mobile">
+                    </li>
+                    <li>
+                        <label for="email">Email</label>
+                        <input type="text" v-model="email" name="email" id="email">
+                    </li>
+                </ul>
+            </div>
+            <p>Your ticket &amp; PNR info will be sent here</p>
+            <div class="done">
+                <mt-button @click="validatInfo" class="btn" type="primary">Continue</mt-button>
+            </div>
+        </div>
+    </div>
+</template>
+<script>
+
+    import headTop from '../../../components/head/head.vue'
+    import failure from '../../failure/failure.vue'
+
+    import {Toast, Indicator} from 'mint-ui';
+    import {FlightOrder, OnewayOrder, RoundTripOrder} from '../../../models/flightorder'
+    import {GetFlightOrderUtil} from '../../../models/utils'
+
+
+    export default{
+        components: {
+            headTop,
+            failure
+        },
+        data(){
+
+            return {
+                mobile: "",
+                email: "",
+                contactName: "",
+                showPopup: false,
+                errorMassages: "",
+
+            }
+        },
+        methods: {
+            getTraveller(index, humanType){
+
+                this.$router.push({path: '/detail', query: {index: index, humanType: humanType}});
+            },
+            validatInfo(){
+
+                let order = this.flightOrder;
+                let adult = order.adults;
+                let children = order.children;
+                let infants = order.infants;
+                for (let i = 0; i < adult.length; i++) {
+                    if (typeof(adult[i].firstname) == "undefined" || typeof(adult[i].lastname) == "undefined" || adult[i].firstname.trim() == "" || adult[i].lastname.trim() == "") {
+                        Toast('Please complete the passenger information');
+                        return;
+                    }
+                }
+
+                for (let i = 0; i < children.length; i++) {
+                    if (typeof(children[i].firstname) == "undefined" || typeof(children[i].lastname) == "undefined" || children[i].firstname.trim() == "" || children[i].lastname.trim() == "") {
+                        Toast('Please complete the passenger information');
+                        return;
+                    }
+                }
+
+                for (let i = 0; i < infants.length; i++) {
+                    console.log(infants[i].firstname)
+                    if (typeof(infants[i].firstname) == "undefined" || typeof(infants[i].lastname) == "undefined" || infants[i].firstname.trim() == "" || infants[i].lastname.trim() == "") {
+                        Toast({
+                            message: 'Please complete the passenger information',
+                            duration: 1000
+                        });
+                        return;
+                    }
+                }
+
+                let $mval = this.mobile;
+                let $eval = this.email;
+                let mreg = /^\d+$/g;
+                let ereg = /@/g;
+                let nreq = /^[A-Za-z\s\.\'\-]*$/;
+                let conName = this.contactName.trim();
+                if (!nreq.test(conName)) {
+                        Toast({
+                            message: 'Please enter correct Contact Name',
+                            duration: 1000
+                        })
+                    }
+                else if (!mreg.test($mval)) {
+                    Toast({
+                        message: 'Mobile number is invalld',
+                        duration: 1000
+                    });
+                } else if (!ereg.test($eval)) {
+                    Toast({
+                        message: 'Please enter correct Email Adress',
+                        duration: 1000
+                    });
+                } else {
+                    let flightOrder = this.$store.getters.flightOrder;
+                    let contactInfo = flightOrder.contactInfo;
+                    contactInfo.cellphone = this.mobile;
+                    contactInfo.email = this.email;
+                    contactInfo.name = conName;
+                    GetFlightOrderUtil.setOrderIntoSession(flightOrder, sessionStorage)
+
+
+                    if (flightOrder.children.length != 0 || flightOrder.infants.length != 0) {
+                        flightOrder.checkPassengerAge(this).then(res => {
+                            console.log(res)
+
+                            if (!res.success) {
+
+                                this.showPopup = true
+                                let failInfo = res.flightPsrs
+
+                                this.errorMassages = flightOrder.getDateErrorMsgArr(failInfo)
+
+                                this.showPopup = true
+                            } else {
+                                this.$router.push("payoption")
+                            }
+
+
+                        })
+                    } else {
+                        this.$router.push("payoption")
+                    }
+
+                }
+            }
+        },
+        computed: {
+            flightOrder() {
+                let order = GetFlightOrderUtil.getOrderFromSession(this, sessionStorage)
+                return order
+            }
+        },
+        mounted(){
+            let order = this.flightOrder
+            if (order.contactInfo != null) {
+
+                let contactInfo = order.contactInfo;
+                if (typeof(contactInfo.cellphone) != "undefined") this.mobile = contactInfo.cellphone;
+                if (typeof(contactInfo.email) != "undefined") this.email = contactInfo.email;
+                if (typeof(contactInfo.name) != "undefined") this.contactName = contactInfo.name;
+            }
+        }
+    }
+</script>
+<style lang="less" scoped>
+    .header {
+        background: #f7f7f8;
+        border-bottom: 1px solid #ccc;
+
+    .title {
+        line-height: 2.04rem;
+        font-size: 0.768rem;
+        color: #000;
+    }
+
+    }
+    .container {
+        padding: 0 0.68rem;
+    }
+
+    h2 {
+        font-size: 0.68rem;
+        color: #666;
+        text-indent: 0.68rem;
+        font-weight: normal;
+        text-align: left;
+        line-height: 1.6rem;
+    }
+
+    h2:nth-of-type(1) {
+        padding-top: 2.4rem;
+    }
+
+    .traveller-info, .contact-info {
+        background-color: #fff;
+        border-radius: 0.4rem;
+
+    li {
+        font-size: 0.68rem;
+        color: #999;
+        height: 1.92rem;
+        line-height: 1.92rem;
+        border-bottom: 1px solid #eee;
+        padding: 0 0.68rem;
+        cursor: pointer;
+
+    span:nth-of-type(2) {
+        font-size: 0.52rem;
+    }
+
+    .sel {
+        width: 0.6rem;
+        height: 1.92rem;
+        display: inline-block;
+        background: url('../../../assets/images/book/detail_next.png') center no-repeat;
+        background-size: 0.6rem;
+        transform: rotateZ(-90deg);
+        -webkit-transform: rotateZ(-90deg);
+    }
+
+    label {
+        padding-right: 0.2rem;
+    }
+
+    }
+    }
+    .contact-info {
+
+    li {
+        text-align: left;
+
+    label {
+        width: 2.4rem;
+        text-align: left;
+    }
+
+    }
+    }
+    p {
+        font-size: 0.52rem;
+        color: #666;
+        text-align: left;
+        padding: 0.2rem 0.68rem;
+    }
+
+    .done {
+
+    .btn {
+        width: 100%;
+        font-size: 0.768rem;
+        color: #fff;
+        height: 1.87rem;
+        margin-top: 2rem;
+        border-radius: 6px;
+        background-color: #ffad3d;
+        display: inline-block;
+        cursor: pointer;
+    }
+
+    }
+</style>

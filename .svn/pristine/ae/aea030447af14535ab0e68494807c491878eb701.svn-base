@@ -1,0 +1,22 @@
+{
+	"protcal": "http",
+	"domain": "192.168.1.134",
+	"port": 8080,
+	"searchFlightPath": "/indi_demo/flight/SearchFlightsNew.do",
+	"loadMoreInfoPath": "/indi_demo/flight/SearchTGQAndBaggageNew.do",
+	"checkPricePath":"/indi_demo/order/checkCountAndPrice.do",
+	"getPriceDetail":"/indi_demo/order/getBaggageInfoAndAllPriceNew.do",
+ 	 "getBaggageInfo": "/indi_demo/order/getBaggageInfoAndAllPriceNew.do",
+	"loginPath":"/indi_demo/user/login.do",
+ 	 "getPaymentInfo": "/indi_demo/payment.do",
+     "getCoupon": "/indi_demo/flight/SearchCoupon.do",
+	 "registerPath":"/indi_demo/user/register.do",
+   	"searchOrder": "/indi_demo/order/queryOrderDetail.do",
+	"saveOrderPath":"/indi_demo/order/saveOrder.do",
+ 	 "searchUserInfo": "/indi_demo/user/userInfo.do",
+   "changeSignPath":"/indi_demo/rebook/applyForRebook.do",
+   "refunds":"/indi_demo/refund/applyForRefund.do",
+  "getUserOders":"/indi_demo/usearOrder/queryUserOrder.do",
+  "ifOrderPaied": "/indi_demo/ResultOfPayment.do",
+  "getFareRulesPath":"/indi_demo/flight/SearchTGQAndBaggageNew.do"
+}

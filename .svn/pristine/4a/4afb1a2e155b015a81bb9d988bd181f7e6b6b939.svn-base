@@ -1,0 +1,274 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+import Home from '../pages/home/home.vue'
+import Flight from '../pages/flight/flight.vue'
+import Order from '../pages/order/order.vue'
+import Payment from '../pages/payment/payment.vue'
+import Register from '../pages/register/register.vue'
+import Book from '../pages/book/book.vue'
+import Search from '../pages/home/child/Search.vue'
+import OneWay from '../pages/flight/child/oneflight.vue'
+import Filter from '../pages/flight/child/filter.vue'
+import Roundtrip from '../pages/flight/child/roundtrip.vue'
+import Detail from '../pages/passengers/child/detail.vue'
+import Menu from '../pages/menu/menu.vue'
+import Sign from '../pages/book/child/signin.vue'
+import Passenger from '../pages/passengers/passenger.vue'
+import Feedback from '../pages/feedback/feedback.vue'
+import Canceltrip from '../pages/canceltrip/canceltrip.vue'
+import Canceltrip1 from '../pages/canceltrip/child/canceltrip1.vue'
+import Canceltrip2 from '../pages/canceltrip/child/canceltrip2.vue'
+import Canceltrip3 from '../pages/canceltrip/child/canceltrip3.vue'
+import About from '../pages/about/about.vue'
+import Contact from '../pages/contact/contact.vue'
+import Offer from '../pages/offer/offer.vue'
+import Fare from '../pages/book/child/fare.vue'
+import OrderDetail from '../pages/order/detail.vue'
+import Trip from '../pages/trip/trip.vue'
+import Ticket from '../pages/ticket/ticket.vue'
+import loading from '../components/loading/loading.vue'
+import Account from '../pages/account/account.vue'
+import Traveller from '../pages/book/child/traveller.vue'
+import payfailure from '../pages/payment/child/failure.vue'
+import paysuccess from '../pages/payment/child/success.vue'
+import payoption from '../pages/payment/child/payoption.vue'
+import payresults from '../pages/payment/payresults.vue'
+import agreement from '../pages/agreement/agreement.vue'
+import nopay from '../pages/order/child/nopay.vue'
+import complete from '../pages/order/child/complete.vue'
+import refund from '../pages/order/child/refund.vue'
+import upcoming from '../pages/order/child/upcoming.vue'
+import wallet from '../pages/wallet/wallet.vue'
+import rules from '../pages/wallet/child/rules.vue'
+import referral from '../pages/referral/referral.vue'
+import referrerInfo from '../pages/referral/child/referralInfo.vue'
+import cashback from '../pages/cashback/cashback.vue'
+import changetrip from '../pages/change/changetrip.vue'
+import happywallet from '../pages/happywallet/happywallet.vue'
+
+Vue.use(Router)
+
+export default new Router({
+    mode: 'history',
+  routes: [
+    {
+      path: '/',
+      component:Home,
+      name:'home',
+      meta: { keepAlive: true }
+    },
+    {
+        path:'/happywallet',
+        component:happywallet
+    },
+    {
+        path:'/cashback',
+        component:cashback
+    },
+    {
+        path:'/referral',
+        component:referral
+    },
+    {
+        path:'/referrerInfo',
+        component:referrerInfo
+    },
+    {
+        path:'/wallet',
+        component:wallet
+    },
+    {
+        path:'/wallet/rules',
+        component:rules
+    },
+    {
+        path:'/loading',
+        component:loading
+    },
+    {
+        path:'/agreement',
+        component:agreement
+    },
+    {
+        path:'/traveller',
+        component:Traveller,
+        meta:{keepAlive:true},
+        children:[
+            {
+                path:'detail'
+            }
+        ]
+    },
+    {
+        path:'/menu',
+        component:Menu
+    },
+    {
+        path:'/search',
+        component:Search,
+        meta: { keepAlive: true }
+    },  
+    {
+    	path:'/flight',
+    	component:Flight,
+        redirect:'/oneway',
+        children:[
+            {
+                path:'/oneway',
+                component:OneWay,
+                meta: { keepAlive: false },
+                children:[
+                    {
+                        path:'filter',
+                        component:Filter
+                    }
+                ]   
+            },
+            {
+                path:'/roundtrip',
+                component:Roundtrip,
+                meta: { keepAlive: false },
+                children:[
+                    {
+                        path:'filter',
+                        component:Filter
+                    }
+                ]   
+            }
+        ]
+    },
+    {
+    	path:'/order',
+    	component:Order,
+        redirect:'/search',
+        children:[
+            {
+                path:'nopay',
+                component:nopay
+            },
+            {
+                path:'complete',
+                component:complete
+            },
+            {
+                path:'refund',
+                component:refund
+            },
+            {
+                path:'upcoming',
+                component:upcoming
+            }
+        ]
+    },
+     {
+        path:'/orderdetail',
+        component:OrderDetail
+    },
+    {
+    	path:'/payment',
+    	component:Payment
+    },
+    {
+        path:'/payresults',
+        component:payresults,
+        children:[
+            {
+                 path:'payfailure',
+                 component:payfailure
+            },
+            {
+                 path:'paysuccess',
+                 component:paysuccess
+            }
+        ]
+    },
+    {
+        path:'/payoption',
+        component:payoption
+    },
+    {
+    	path:'/register',
+    	component:Register
+    },
+    {
+    	path:'/book',
+    	component:Book,
+        children:[
+            {
+                path:'passenger',
+                component:Passenger
+            },
+            {
+                path:'fare',
+                component:Fare
+            }
+        ]   
+    },
+    {
+        path:'/detail',
+        component:Detail,
+        meta: { keepAlive: false }
+    },
+    {
+        path:'/sign',
+        component:Sign
+    },
+    {
+        path:'/feedback',
+        component:Feedback
+    },
+    {
+        path:'/changetrip',
+        component:changetrip
+    },
+    {
+        path:'/Canceltrip',
+        component:Canceltrip,
+        redirect:{
+            path:'/canceltrip1'
+        },
+        children:[
+            {
+                path:'/canceltrip1',
+                component:Canceltrip1
+            },
+            {
+                path:'/canceltrip2',
+                component:Canceltrip2
+            },
+            {
+                path:'/canceltrip3',
+                component:Canceltrip3
+            }
+        ]
+    },
+    {
+        path:'/about',
+        component:About
+    },
+    {
+        path:'/offer',
+        component:Offer
+    },
+    {
+        path:'/ticket',
+        component:Ticket
+    },
+    {
+        path:'/account',
+        component:Account,
+    },
+    {
+        path:'/trip',
+        component:Trip
+    },
+    {
+        path:'/contact',
+        component:Contact
+    },
+    {
+        path:'*',
+        component:Home
+    }
+  ]
+})

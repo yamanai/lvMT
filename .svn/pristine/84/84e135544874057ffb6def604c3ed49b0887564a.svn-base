@@ -1,0 +1,174 @@
+<template>
+	<div class="wrapper">
+		<head-top class="head">
+			<img slot="left" :src="require('../../../assets/images/flight-prev.png')" @click="$router.push('/search')" />
+			<div slot="title" class="title flex" v-for="(item,index) in orders" v-if="index==0">
+				<h2>{{departCity}}</h2>
+				<div class="title-img">
+					<img :src="require('../../../assets/images/order/paid_02.png')" v-show="orders.length==1" alt="">
+					<img :src="require('../../../assets/images/re-flight_04.png')" v-show="orders.length==2" alt="">
+				</div>
+				<h2>{{ariveCity}}</h2>
+			</div>
+		</head-top>
+		<div class="container">
+			<div class="content">
+				<div class="flight-info">
+					<div class="dates">
+						<h2><span>Fares change rapidly</span></h2>
+						<p>So please complete the</p>
+						<p>Payment process before <span>{{expirationTime}}(IST)</span></p>
+					</div>
+					<flight-info :orders="orders"></flight-info>
+				</div>
+			</div>
+			<payment class="payment" :ispasetime="ispasetime" :orders="orders"></payment>
+		</div>
+	</div>
+</template>
+<script>
+import headTop from '../../../components/head/head.vue'
+import payment from './base/payment.vue'
+import flightInfo from './base/flightInfo.vue'
+import traveller from './base/traveller.vue'
+
+
+	export default{
+		components:{
+			headTop,
+			payment,
+			flightInfo,
+			traveller
+		},
+		data(){
+			return {
+				orders:[]
+			}
+		},
+		computed:{
+			ispasetime(){
+				if(this.orders.length!=0){
+					let creatTime = new Date(this.orders[0].creatTime+15*60*1000).getTime();
+					let curTime = new Date().getTime();
+					return creatTime > curTime?true : false;
+				}
+			},
+			expirationTime(){
+				let creatTime = null;
+				if(this.orders.length>0){
+					creatTime = new Date(this.orders[0].creatTime);
+					let year = creatTime.getFullYear();
+					let month = creatTime.getMonth()+1;
+					let date = creatTime.getDate();
+					let hour = creatTime.getHours();
+					let minute = creatTime.getMinutes()+15;
+					let second = creatTime.getSeconds();
+					
+					return (date+'/'+month+'/'+year+','+hour+':'+minute+':'+second)
+				}
+			},
+			departCity(){
+				if(this.orders.length!=0){
+					return this.orders[0].voyageinfo[0].dc;
+				}
+			},
+			ariveCity(){
+				if(this.orders.length!=0){
+					return this.orders[0].voyageinfo[this.orders[0].voyageinfo.length-1].ac;
+				}
+			}
+		},
+		mounted(){
+			this.orders = this.$store.getters.orderDetail;
+			if(!this.orders){
+				this.orders = JSON.parse(sessionStorage.getItem('orders'));
+			}
+		}
+	}
+</script>
+<style lang="less" scoped>
+	.head{
+		background:#f7f7f8!important;
+		border-bottom:1px solid #ccc;
+		.title{
+			h2{
+				font-size:0.768rem;
+				color:#000;
+			}
+			.title-img{
+				width:1.2rem;
+				height:2.04rem;
+				line-height:2.04rem;
+				padding:0 0.2rem;
+				img{
+					margin-top:4px;
+					width:1rem;
+				}
+			}
+		}
+	}
+	.container{
+		overflow:auto;
+		.content{
+			padding:2.4rem 0.68rem 2.8rem;
+		}
+		.flight-info{
+			.dates{
+				padding-bottom:0.8rem;
+				h2{
+					font-size:0.68rem;
+					color:#333;
+					padding:0.2rem 0;
+					span{
+						padding-left:1.2rem;
+						background:url('../../../assets/images/order/paid_03.png') left no-repeat;
+						background-size:0.68rem;
+					}
+				}
+				p{
+					font-size:0.52rem;
+					color:#666;
+					padding-top:0.2rem;
+					span{
+						font-size:0.56rem;
+						color:#333;
+					}
+				}
+			}
+		}
+		.traveller{
+			background-color:#fff;
+			border-radius:0.4rem;
+			margin-top:0.6rem;
+			.title{
+				h2{
+					font-size:0.6rem;
+					color:#333;
+					text-align:left;
+					span{
+						font-size:0.68rem;
+						padding:0 0.2rem;
+					}
+				}
+			}
+			ul>li{
+				h2{
+					font-size:0.6rem;
+					color:#333;
+					text-align:left;
+					padding:0.4rem 0;
+					span{
+						padding-right:0.2rem;
+					}
+				}
+			}
+		}
+	}
+	.payment{
+		position:fixed;
+		bottom:0;
+	}
+	.pasetime{
+		background-color:#ccc!important;
+	}
+</style>

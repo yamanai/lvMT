@@ -1,0 +1,299 @@
+<template>
+	<div class="wrapper">
+		<head-top class="header">
+			<div slot="left" class="ico" @click="$router.go(-1)"></div>
+			<div slot="title" class="head-title">sign up</div>
+		</head-top>
+		<div class="container">
+			<div class="firstname">
+				<input type="text" placeholder="First name">
+			</div>
+			<div class="lastname">
+				<input type="text" placeholder="Last name">
+			</div>
+			<div class="email">
+				<input type="text" placeholder="Email">
+			</div>
+			<div class="mobile">
+				<input type="text" placeholder="Mobile">
+			</div>
+			<div class="code">
+				<input type="text" placeholder="Verification"><input type="button" value="Send code">
+			</div>
+			<div class="pwd">
+				<input type="password" placeholder="Password">
+				<div class="easy pwdhide" @click="showpwd"></div>
+			</div>
+			<div class="repwd">
+				<input type="password" placeholder="Retype Password">
+				<div class="easy pwdhide" @click="showrepwd"></div>
+			</div>
+			<div class="statement clear">
+				<span class="selected" :class="{choose:isSelec}" @click="isSelec=!isSelec"></span>
+				<p>By signing up,you agree to Happy easy go's <span>terms &amp; conditions</span></p>
+			</div>
+			<div class="register">
+				<input class="reg" @click="validate" type="button" value="Register" />
+			</div>
+		</div>
+	</div>
+</template>
+<script>
+import headTop from '../../components/head/head.vue'
+import { Toast } from 'mint-ui'
+import {Register} from '../../models/user/Register.js'
+import {User} from '../../models/user/User.js'
+	export default{
+		components:{
+			headTop
+		},
+		data(){
+			return {
+				show:false,
+				isSelec:false,
+				pwdtext:'',
+				password:[
+					{	
+						placeholder:'Password',
+						class:'pwd',
+						show:false,
+						inputType:{
+							text:'text',
+							pwd:'password'
+						}
+					},
+					{	
+						placeholder:'Retype Password',
+						class:'repwd',
+						show:false,
+						inputType:{
+							text:'text',
+							pwd:'password'
+						}
+					},
+				]
+			}
+		},
+		methods:{
+			showpwd(){
+				if($('.pwd input').attr('type') == 'password'){
+					$('.pwd input').attr('type','text');
+					$('.pwd .easy').removeClass('pwdhide').addClass('pwdshow')
+				}else{
+					$('.pwd input').attr('type','password');
+					$('.pwd .easy').removeClass('pwdshow').addClass('pwdhide')
+				}
+			},
+			showrepwd(){
+				if($('.repwd input').attr('type') == 'password'){
+					$('.repwd input').attr('type','text');
+					$('.repwd .easy').removeClass('pwdhide').addClass('pwdshow')
+				}else{
+					$('.repwd input').attr('type','password');
+					$('.repwd .easy').removeClass('pwdshow').addClass('pwdhide')
+				}
+			},
+			countdown(){
+				var time = 30;
+				var timer = null;
+				
+				clearInterval(timer);
+				timer = setInterval(function(){
+					$('.reg').val(time);
+					time--;
+					if(time < 0){
+						clearInterval(timer);
+						$('.reg').removeAttr("disabled").css("backgroundColor","#ffad3d").val("Register")
+					}
+				},1000)
+			},
+			validate(){
+				let $firstname = $('.firstname input').val().trim();
+				let $lastname  = $('.lastname input').val().trim();
+				let $email =  $('.email input').val().trim();
+				let $mobile = $('.mobile input').val().trim();
+				let $password = $('.pwd input').val();
+				let $repassword = $('.repwd input').val();
+
+				if($firstname==""){
+					Toast({
+					  message: 'please enter first name',
+					  duration: 1000
+					});
+				}else if($lastname==""){
+					Toast({
+					  message: 'please enter last name',
+					  duration: 1000
+					});
+				}else if($email==""||!/@/g.test($email)){
+					Toast({
+					  message: 'Please enter correct Email Adress',
+					  duration: 1000
+					});
+				}else if($mobile=="" || !/\d/g.test($mobile)){
+					Toast({
+					  message: 'Please enter correct Phone number',
+					  duration: 1000
+					});
+				}else if($password==""){
+					Toast({
+					  message: 'Plaese enter password',
+					  duration: 1000
+					});
+				}else if($repassword==""||$repassword!=$password){
+					Toast({
+					  message: 'Two passwords are inconsistent',
+					  duration: 1000
+					});
+				}else if(!this.isSelec){
+
+				}else{
+					$('.reg').attr("disabled","disabled").css("backgroundColor","#ccc");
+					this.countdown();
+					setTimeout(()=>{
+						$('.reg').removeAttr("disabled").css("backgroundColor","#ffad3d");
+					},30000)
+					let register = new Register($firstname,$lastname,$email,$mobile,$password);
+					console.log(register)
+					register.register(this).then((res)=>{
+						res.json().then((jsonObj)=>{
+							if(jsonObj.success){
+								Toast({
+								  message: 'registration success,please verify your email',
+								  duration: 2000
+								});
+								this.$router.push("Home")
+							}else{
+								Toast(jsonObj.msg)
+							}
+						}).catch((err)=>{
+							console.log(err)
+						});
+
+					}).catch((err)=>{
+						console.log(err)
+						Toast({
+						  message: 'network anomaly',
+						  duration: 1000
+						});
+					});
+				}
+			}
+		}
+	}
+</script>
+<style lang='less' scoped>
+	.header{
+		background:#f7f7f8;
+		border-bottom:1px solid #ccc;
+		.ico{
+			float:left;
+			background:url('../../assets/images/book/detail_close.png') center no-repeat;
+			background-size:0.68rem;
+			height:2.04rem;
+			width:1.2rem;
+		}
+		.head-title{
+			font-size:1.02rem;
+			line-height:2.04rem;
+			color:#000;
+		}
+	}
+	.container{
+		padding:0 0.68rem;
+		overflow:auto;
+		input{
+			background-color:#e1e1e4;
+			color:#333;
+			height:1.9rem;
+		}
+		div{
+			width:100%;
+			margin-top:0.42rem;
+		}
+		.firstname input,.lastname input,.mobile input, .email input,.pwd input,.repwd input,.register input{
+			width:100%;
+		}
+		.firstname{
+			margin-top:4.4rem;
+			p{
+				font-size:0.6rem;
+				color:#ffad3d;
+				text-align:left;
+			}
+		}
+		.pwd,.repwd{
+			position:relative;
+			.easy{
+				width:0.8rem;
+				height:0.8rem;
+				margin:0;
+				position:absolute;
+				right:0.4rem;
+				top:50%;
+				transform:translateY(-50%);
+				background-color:transparent!important;
+			}
+			.pwdhide{
+				background:url('../../assets/images/register/login_07.png') center no-repeat;
+				background-size:0.8rem;
+			}
+			.pwdshow{
+				background:url('../../assets/images/register/login_03.png') center no-repeat;
+				background-size:0.8rem;
+			}
+		}
+		.code{
+			display:none;
+			input[type='text']{
+				width:70%;
+			}
+			input[type='button']{
+				width:28%;
+				background-color:#ffad3d;
+			}
+		}
+		.register{
+			margin-top:1rem;
+			input{
+				width:100%;
+				background-color:#ffad3d;
+				height:1.6rem;
+				font-size:0.68rem;
+				color:#fff;
+			}
+		} 
+		.statement{
+			text-align:left;
+			.selected{
+				float:left;
+				width:0.68rem;
+				height:0.68rem;
+				border-radius:50%;
+				background:url('../../assets/images/register/false.png') center no-repeat;
+				background-size:0.68rem;
+			}
+			.choose{
+				background:url('../../assets/images/register/true.png') center no-repeat;
+				background-size:0.68rem;
+				border-color:#f56600!important;
+			}
+			p{
+				color:#999;
+				font-size:0.6rem;
+				margin-left:1rem;
+				line-height:0.8rem;
+				span{
+					color:#0db88f;
+				}
+			}
+		}
+	}
+	.container:before{
+		content:'';
+		display:table;
+	}
+	::-webkit-input-placeholder{color:#fff;font-size:0.6rem;padding-left:0.4rem;}
+	::-moz-placeholder{color:#fff;font-size:0.6rem;padding-left:0.4rem;}
+	:-moz-placeholder{color:#fff;font-size:0.6rem;padding-left:0.4rem;}
+</style>

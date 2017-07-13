@@ -1,0 +1,76 @@
+import { DomainManager } from '../../config/DomainManager'
+import { FlightOrder } from '../../models/flightorder'
+import * as XFlight from '../../vuex/models/flight/XFlight.js'
+
+
+export class Coupon {
+
+    constructor(couponCode,airlineCode,discountMethods,discountCeiling,rebates,keepMoney,applyTyle,personNum,minOrderPrice){
+        this.couponCode = couponCode;
+        this.airlineCode = airlineCode;
+        this.discountMethods = discountMethods;
+        this.discountCeiling = discountCeiling;
+        this.rebates = rebates;
+        this.keepMoney = keepMoney;
+        this.applyTyle = applyTyle;
+        this.personNum = personNum;
+        this.minOrderPrice = minOrderPrice;
+    }
+
+    getDiscountPrice(vueComp,flight){
+        let flightOrder = vueComp.$store.getters.flightOrder;
+        let num = flightOrder.adults.length + flightOrder.children.length + flightOrder.infants.length;
+        let discount = 0;
+        let newFlight = [];
+        flight.forEach(el=>{
+            let cbfp = el.bfp;
+            if(this.applyTyle != 1){
+                return;
+            }
+
+            if((this.airlineCode == '*' || this.airlineCode.indexOf(el.airline.shortname) > -1) && cbfp >= this.minOrderPrice ){
+                if(this.discountMethods == 1){
+                    this.discountCeiling = this.discountCeiling || -1000000000;
+                    let couponPrice = Math.ceil( this.personNum == 1 ? cbfp*(this.rebates/100) + this.keepMoney*num : cbfp*(this.rebates/100) + this.keepMoney);
+                    let discountCeiling = this.personNum == 1 ? this.discountCeiling*num : this.discountCeiling;
+                    discount = Math.abs(couponPrice) > Math.abs(discountCeiling) ? discountCeiling : couponPrice;
+                    el.realDiscount -= discount;
+                    newFlight.push(el);
+                }
+            }
+        })
+        return newFlight;
+    }
+
+    static buildCoupon(res){
+        return new Coupon(res.k1,res.k2,res.k5,res.k7,res.v1Int,res.v2Int,res.v3,res.v4,res.v6);
+    }
+
+    static getCoupon(vueComp,code){
+
+        let map = new Map();
+        map.set('k1',code.toUpperCase())
+        let url = DomainManager.getCouponURLString(DomainManager.getQueryString(map));
+
+        return new Promise((resolve,reject)=>{
+
+            vueComp.$http.get(url).then(res=>{
+
+                res.json().then(jsonObj=>{
+
+                     resolve(jsonObj);
+
+                 }).catch(err=>{
+
+                    reject(err);
+                 })
+
+            }).catch(err=>{
+
+                reject(err);
+            })
+        })
+    }
+
+
+}

@@ -1,0 +1,61 @@
+<template>
+	<div class="header flex space-between">
+		<div class="head-ico flex align-items-center">
+			<slot name="left"></slot>
+		</div>
+		<div class="head-title">
+			<slot name="title"></slot>
+		</div>
+		<div class="user flex align-items-center content-end">
+			<slot name="right"></slot>
+		</div>
+	</div>
+</template>
+<script>
+	export default{
+		data(){
+			return {
+			}
+		}
+	}
+</script>
+<style lang='less' scoped>
+.header{
+	width:100%;
+	height:2.04rem;    /* 48px */
+	line-height:2.04rem;
+	position:fixed;
+	top:0;
+	z-index:10;
+	.head-ico,.user{
+		min-width:1.2rem;
+		width:1.2rem;
+		height:2.04rem;
+		line-height:2.04rem;
+		flex:0 0 1.2rem;
+		cursor:pointer;
+		img{
+			min-width:1rem;
+			width:1rem;
+			flex:0 0 1rem;
+			display:block;
+		}
+	}
+	.user{
+		width:2rem;
+	}
+	.head-title{
+		font-size:1.02rem;  /* 24px */
+		height:2.04rem;
+		line-height:2.04rem;
+		color:#fff;
+	}
+}
+.head-ico{
+	margin-left:0.68rem;
+}
+.user{
+	width:1rem;
+	margin-right:0.68rem;
+}
+</style>

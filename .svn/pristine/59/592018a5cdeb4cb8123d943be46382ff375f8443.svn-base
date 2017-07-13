@@ -1,0 +1,321 @@
+<template>
+	<div class="wrapper">
+		<head-top>
+			<img slot="left" :src="require('../../../assets/images/flight-prev.png')" class="prev" @click="$router.go(-1)">
+			<div slot="title" class="title">Payment Options</div>
+		</head-top>
+		<div class="container">
+			<div class="content">
+				<div v-if="false" class="offers">
+					<h2>offers</h2>
+					<div class="offers-cont">
+						<div class="coupon flex space-between">
+							<div class="couponLeft flex space-between align-items-center">
+								<span class="choose" :class="{selected:!isSelec}" @click="isSelec=!isSelec"></span>
+								<span class="text">Coupon Code</span>
+								<input type="text">
+							</div>
+							<div class="couponRight">
+								<span>Apply</span>
+							</div>
+						</div>
+						<div class="silver flex space-between">
+							<div class="silverLeft flex content-start align-items-center">
+								<span class="choose" :class="{selected:isSelec}" @click="isSelec=!isSelec"></span>
+								<span class="text">Happy Silver</span>
+							</div>
+							<div class="silverRight flex">
+								<div><span>Avaliable</span><i class="rs">Rs.</i><span>30400</span></div>
+								<div><span>Surplus</span><i class="rs">Rs.</i><span>30400</span></div>
+							</div>
+						</div>
+						<div class="gold flex space-between">
+							<span>Happy Gold</span><span><i class="rs">Rs.</i>30000</span>
+						</div>
+					</div>
+				</div>
+				<div class="fare">
+					<h2>Fare breack up</h2>
+					<div class="fare-cont">
+						<div class="list flex space-between">
+							<span>Base Fare</span><span><i class="rs">Rs.</i>{{travelFee | formatDate}}</span>
+						</div>
+						<div class="list flex space-between">
+							<span>Taxes&amp;Fare</span><span><i class="rs">Rs.</i> {{taxFee | formatDate}}</span>
+						</div>
+						<div class="list flex space-between">
+							<span>Convenience fee</span><span><i class="rs">Rs.</i> {{flightOrder.serviceFee | formatDate}}</span>
+						</div>
+						<div class="list flex space-between">
+							<span id>Discount</span><span><i class="rs">Rs.</i>-{{discount | formatDate}}</span>
+						</div>
+						<div class="total flex space-between">
+							<span>Total</span>
+							<span><i class="rs">Rs.</i> {{totalCount | formatDate}}</span>
+						</div>
+					</div>
+				</div>
+				<p>By booking with Happy Easy go,you agreen to our <span>T&amp;C</span></p>
+				<div class="done">
+					<mt-button @click="validatInfo" class="btn" type="primary">Make Payment</mt-button>
+					<mt-button class="btn" id="creditPay" type="primary" v-show='false'>Make Payment</mt-button>
+				</div>
+			</div>	
+		</div>
+	</div>
+</template>
+<script>
+import headTop from '../../../components/head/head.vue'
+import {FlightOrder, OnewayOrder, RoundTripOrder} from '../../../models/flightorder'
+import { Toast,Indicator } from 'mint-ui'
+import {GetFlightOrderUtil} from '../../../models/utils'
+	export default{
+		components:{
+			headTop
+		},
+		data(){
+			return {
+				isSelec:false
+			}
+		},
+		methods:{
+			validatInfo(){
+					let self = this;
+					Indicator.open({
+				 	 spinnerType: 'fading-circle'
+					});
+				let flightOrder =this.$store.getters.flightOrder;
+
+				flightOrder.saveOrder(this).then((res)=>{
+
+									flightOrder.orderNumber = res.orderId
+									//Monitor code start
+									let oFlight = JSON.parse(sessionStorage.getItem('order'));
+									let arr = [];
+									for(let o in oFlight){
+										let quantity = oFlight.adults.length+oFlight.children.length+oFlight.infants.length;
+										switch(o){
+											case "departFlight":
+											case "returnFlight":
+												let airportInfo = oFlight[o].stops[0].departAirportName;
+												for(let el of oFlight[o].stops){
+													 airportInfo += ('-'+el.arrivalAirportName);
+												}
+												arr.push({
+													'sku':oFlight[o].stops[0].flightNumber+"-"+oFlight[o].stops[0].departDate,
+													'name':airportInfo,
+													'category':oFlight[o].stops[0].flightNumber.slice(0,2),
+													'price':oFlight[o].price/quantity,
+													'quantity':quantity
+												})
+												break;
+										}
+									}
+									window.dataLayer.push({
+										'transactionId':flightOrder.orderNumber,
+										'transactionTotal':self.totalCount,
+										'transactionTax':self.taxFee,
+										'transactionShipping':flightOrder.serviceFee,
+										'transactionProducts':arr
+									})
+									$('#creditPay').click();
+									//Monitor code end
+
+									GetFlightOrderUtil.setOrderIntoSession(flightOrder,sessionStorage)
+
+									flightOrder.requestPaymentOrderInfo(self).then((res)=>{
+											flightOrder.makePayment(window,res,sessionStorage);
+									},(err)=>{
+										console.log(err)
+										Indicator.close()
+									})
+					},(error)=>{
+						console.log(error)
+						Indicator.close()
+						Toast("network anomaly")
+					});
+			}
+
+		},
+		computed:{
+
+			totalCount:{
+				get:function(){
+					 let order = GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+					let totalPrice = order.departFlight.realPrice;
+					if(order.returnFlight!=undefined && order.returnFlight!=null){
+						let returnCount =order.returnFlight.realPrice;
+						totalPrice+=returnCount
+					}
+					totalPrice +=order.serviceFee;
+					order.totalPrice = totalPrice;
+					return totalPrice;
+				}
+			},
+			travelFee(){
+				let p = 0
+			    let f = GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+				if(f instanceof(OnewayOrder)){
+					p = f.departFlight.realPrice - f.departFlight.taxFee+f.departFlight.realDiscount
+				}else if(f instanceof(RoundTripOrder)){
+					p = (f.departFlight.realPrice - f.departFlight.taxFee+f.departFlight.realDiscount)+(f.returnFlight.realPrice - f.returnFlight.taxFee+f.returnFlight.realDiscount)
+				}
+				return p
+		},
+		taxFee() {
+			  let p = 0
+			  let f = GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+			  if(f instanceof(OnewayOrder)){
+					p = f.departFlight.taxFee
+				}else if(f instanceof(RoundTripOrder)){
+					p =f.returnFlight.taxFee + f.returnFlight.taxFee
+				}
+				return p
+		},
+		discount(){
+			 let p = 0
+			  let f = GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+			  if(f instanceof(OnewayOrder)){
+					p = f.departFlight.realDiscount
+				}else if(f instanceof(RoundTripOrder)){
+					p = f.departFlight.realDiscount + f.returnFlight.realDiscount
+				}
+				return p
+		},
+		flightOrder() {
+				
+				let order = GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+				
+				return order
+			} 
+	}
+}
+</script>
+<style lang="less" scoped>
+	.selected{
+		border-color:#ffad3d!important;
+		background:#ffad3d url('../../../assets/images/sure.png') center no-repeat;
+		background-size:contain;
+	}
+	.header{
+		background:#f7f7f8;
+		border-bottom:1px solid #ccc;
+		.title{
+			line-height:2.04rem;
+			font-size:0.768rem;
+			color:#000;
+		}
+	}
+	.content{
+		padding:2.4rem 0.68rem 0;
+		.offers{
+			h2{
+				font-size:0.68rem;
+				color:#666;
+				text-align:left;
+				padding:0.2rem 0.4rem;
+			}
+			.offers-cont{
+				background-color:#fff;
+				border-radius:0.4rem;
+				.coupon,.silver,.gold{
+					padding:0.2rem 0.4rem;
+					height:1.6rem;
+					line-height:1.6rem;
+					border-bottom:1px solid #eee;
+					.choose{
+						width:0.6rem;
+						height:0.6rem;
+						border:1px solid #ccc;
+						border-radius:50%;
+					}
+					.text{
+						font-size:0.52rem;
+						color:#666;
+						padding-left:0.4rem;
+					}
+				}
+				.coupon{
+					
+					.couponLeft{
+						input{
+							width:6rem;
+							height:1.2rem;
+							text-indent:0.6rem;
+						}
+					}
+					.couponRight{
+						span{
+							font-size:0.68rem;
+							color:#ffad3d;
+						}
+					}
+				}
+				.silver{
+					.silverRight{
+						div{
+							font-size:0.5rem;
+							color:#ccc;
+						}
+					}
+				}
+				.gold{
+					span{
+						font-size:0.5rem;
+					}
+					span:nth-of-type(2){
+						color:#ccc;
+					}
+				}
+			}
+		}
+		.fare{
+			h2{
+				font-size:0.68rem;
+				color:#666;
+				text-align:left;
+				padding:0.4rem;
+			}
+			.fare-cont{
+				background-color:#fff;
+				border-radius:0.4rem;
+				padding:0.4rem;
+				.list,.total{
+					font-size:0.6rem;
+					color:#666;
+					height:1.4rem;
+					line-height:1.4rem;
+					span{
+						text-align:left;
+					}
+				}
+				.total{
+					font-size:0.768rem;
+					color:#333;
+					padding:0.2rem 0rem;
+				}
+			}
+		}
+		p{
+			font-size:0.5rem;
+			color:#666;
+			line-height:1rem;
+			span{
+				color:#0bb78f;
+			}
+		}
+		.done{
+			.btn{
+				width:100%;
+				font-size:0.768rem;
+				color:#fff;
+				height:1.87rem;
+				margin-top:2rem;
+				border-radius:6px;
+				background-color:#ffad3d;
+				display:inline-block;
+				cursor:pointer;
+			}
+		}
+	}
+</style>

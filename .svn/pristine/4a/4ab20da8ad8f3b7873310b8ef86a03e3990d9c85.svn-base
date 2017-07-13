@@ -1,0 +1,60 @@
+<template>
+	<div class="calendar-wrapper flex direction-column content-center">
+		<div class="calendar-con">
+			<calendar-input :limit="limit" @getValue="getValue"></calendar-input>
+			<div class="done">
+				<input id="btn" type="button" @click='done' value="Done">
+			</div>
+		</div>
+	</div>
+</template>
+<script>
+	import calendarInput from './base/datepicker.vue'
+	export default{
+		components:{
+			 calendarInput
+		},
+		props:{
+			limit:{
+				 type:Object
+			}
+		},
+		data(){
+			return {
+				dateValue:new Date(),
+				showCalendar:false
+			}
+		},
+		methods:{
+			getValue(dateValue){
+				this.dateValue = new Date(dateValue);
+			},
+			done(){
+				this.$emit('getVal',this.dateValue,this.showCalendar);
+			}
+		}
+	}
+</script>
+<style lang="less">
+	.calendar-wrapper{
+		height:100%;
+		width:100%;
+		position:fixed;
+		z-index:30;
+		.calendar-con{
+			margin:0 0.68rem;
+			padding:0.4rem;
+			background-color:#fff;
+			border-radius:0.4rem;
+			.done{
+				padding:0.4rem 0;
+				input{
+					font-size:0.52rem;
+					color:#fff;
+					background-color:#ffad3d;
+					padding:0.4rem 0.6rem;
+				}
+			}
+		}
+	}
+</style>

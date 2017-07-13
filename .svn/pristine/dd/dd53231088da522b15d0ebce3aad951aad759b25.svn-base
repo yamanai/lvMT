@@ -1,0 +1,611 @@
+<template>
+	<div class="wrapper">
+		<transition enter-active-class="slideInRight" leave-active-class="slideOutRight">
+			<router-view class="animated"></router-view>
+		</transition>
+		<head-top class="header">
+			<img slot="left" :src="heads.img" @click="goBack" alt="">
+			<span slot="title">{{heads.title}}</span>
+			<img v-show="false" slot="right" :src="heads.img2" alt="">
+		</head-top>
+		<div class="container">
+			<div>
+				<div v-for="(info, index) in flightInfos" :class="tripClass(index)">
+					<div class="title clear">
+						<span>{{info.departAirport.cityName}}</span>
+						<span class="arive"></span>
+						<span>{{info.destinationAirport.cityName}}</span>
+					</div>
+					<div class="trip-cont">
+						<div v-for="(item,i) in info.flight.stops">
+							<div class="title">
+								<span class="title-img"><img :src="item.airline.iconPath" /></span>
+								<span>{{item.airline.name}}&nbsp;&nbsp;&nbsp;{{item.flightNumber}}</span>
+							</div>
+							<div class="time-info flex space-between">
+								<div class="from-time">
+									<h2><span>{{item.departAirportName}}</span>
+									<span>{{TimeFormatUtil.getDisplayHourAndMinute(new Date(item.departDate))}}</span></h2>
+									<div>
+										<span>{{TimeFormatUtil.getBookDetailDate(new Date(item.departDate))}}</span>
+									</div>
+									<div>
+										<span>{{item.departAirport}}</span>
+									</div>
+								</div>
+								<div class="distance">
+									<span>{{item.waitTime}}</span>
+								</div>
+								<div class="to-time from-time">
+									<h2><span>{{item.arrivalAirportName}}</span>
+									<span>{{TimeFormatUtil.getDisplayHourAndMinute(new Date(item.returnDate))}}<i v-show="info.flight.durationDays!=0">&nbsp;+{{info.flight.durationDays}}</i></span></h2>
+									<div>
+										<span>{{TimeFormatUtil.getBookDetailDate(new Date(item.returnDate))}}</span>
+									</div>
+									<div>
+										<span>{{item.arrivalAirport}}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="trip-attach">
+							<div class="rules flex space-between">
+								<span>{{flightOrder.departFlight.refundable? 'Refundable' : 'No-Refoundable'}}</span>
+								<a @click='fareRule(index)' v-show='info.flight.refundable'>Fare Rules</a>
+							</div>
+						</div>	
+					</div>
+				</div>
+				<div class="trip-attach" v-if="flightOrder!=null">
+					<div class="baggage-tit">
+						<span>Baggage info</span>
+						<span></span>
+					</div>
+					 <div  class="baggage-info" v-for="info in flightOrder.baggageinfo">
+						<h2>{{info.flightNumber}}</h2>
+						<div class="flex space-between">
+							<span>Check in</span>
+							<span>{{info.allowenceBaggageWeight}} kg</span>
+						</div>
+						<div class="flex space-between">
+							<span>Cabin</span>
+							<span>{{info.carryBaggageWeight}} kg</span>
+						</div>
+					</div> 
+				</div>
+				<div class="offers" v-show="false">
+					<h2>Happy Easy Go Offers</h2>
+					<div class="offers-group">
+						<div class="radio-group flex content-start" @click="radio1">
+							<div class="round1">
+								<div :class="{round2:isSelecA}"></div>
+							</div>
+							<p :class="{yellow:isSelecA}">Get Instant Discount with Coupon</p>
+						</div>
+						<div class="input-group flex content-start">
+							<input type="text" ref="coupon">
+							<a :class="{cheked:isSelecA,disabel:!isSelecA}" href="javascript:">Apply code</a>
+						</div>
+					</div>
+					<div class="offers-group">
+						<div class="radio-group flex content-start" @click="radio2">
+							<div class="round1">
+								<div :class="{round2:isSelecB}"></div>
+							</div>
+							<p :class="{yellow:isSelecB}">Get Instant Discount with Happy Silver Rs. 0</p>
+						</div>
+					</div>
+					<div class="offers-group">
+						<div class="radio-group flex content-start" @click="radio3">
+							<div class="round1">
+								<div :class="{round2:isSelecC}"></div>
+							</div>
+							<p :class="{yellow:isSelecC}">Use my Happy Gold <span class="yellow">Rs. 0</span></p>
+						</div>
+						<div class="input-group flex content-start">
+							<input type="text" ref="gold" disabled="true">
+							<a :class="{cheked:isSelecC,disabel:!isSelecC}" href="javascript:">Submit</a>
+						</div>
+					</div>
+				</div>
+				<p class="term"><span class="round selected"></span>By booking with Happy Easy go,you agree to our <span class="green" @click="$router.push('/agreement')">T&amp;C</span></p>
+				<div class="payment">
+					<mt-button class="submitBook"  @click="submitBook" type="primary">Continue</mt-button>
+				</div>
+			</div>	
+		</div>
+	</div>	
+</template>
+<script>
+import headTop from '../../components/head/head.vue'
+import {TimeFormatUtil,GetFlightOrderUtil} from '../../models/utils'
+import { Toast } from 'mint-ui'
+import {mapMutations} from 'vuex'
+import {mutaionNames} from '../../vuex'
+import {FlightOrder, OnewayOrder, RoundTripOrder} from '../../models/flightorder'
+import * as mutationNames from '../../vuex/models/flightorder/MutationName.js'
+
+
+	export default{
+		components:{
+			headTop
+		},
+		data(){
+			return {
+				showFare:false,
+				isSelecA:true,
+				isSelecB:false,
+				isSelecC:false,
+				heads:{
+					img:require('../../assets/images/flight-prev.png'),
+					title:'Book',
+					img2:require('../../assets/images/book/p.png')
+				},
+				forms:[
+					{
+						title:'Name',
+						placeholder:'Enter your name',
+						type:'text'
+					},
+					{
+						title:'Mobile',
+						placeholder:'Enter your Mobile',
+						type:'text'
+					},
+					{
+						title:'Email',
+						placeholder:'Enter your emails',
+						type:'text'
+					}
+				],
+				durationDays:0,
+				TimeFormatUtil
+			}
+		},
+		computed: {
+			flightOrder() {
+				let order = GetFlightOrderUtil.getOrderFromSession(this,sessionStorage)
+				console.log(order)
+				return order
+			},
+			travellerNum(){
+				let order = this.flightOrder
+				if(order!=null){
+					let adultNum = this.flightOrder.adults.length
+					let childNum = this.flightOrder.children.length
+					let infantsNum = this.flightOrder.infants.length
+					return (adultNum + childNum + infantsNum)
+				}else{
+					return 0
+				}
+			}, 
+			flightInfos() {
+				let res = []
+				let order = this.flightOrder
+				if(order!=null){
+					res.push({
+						flight: order.departFlight,
+						departAirport: order.departAirport,
+						destinationAirport: order.destinationAirport
+					}) 
+					if (this.flightOrder instanceof RoundTripOrder) {
+						res.push({
+							flight: order.returnFlight,
+							departAirport: order.destinationAirport,
+							destinationAirport: order.departAirport
+						})
+					}
+				}
+				return res
+			},
+			travellersDescriptionStr () {
+				let adultsNum = this.flightOrder.adults.length
+				let childrenNum = this.flightOrder.children.length
+				let infantsNum = this.flightOrder.infants.length
+
+				let adultsDes = adultsNum == 0 ? '' : adultsNum + ' adult(s) '
+				let childrenDes = ''
+				if (childrenNum != 0) {
+					if (childrenNum == 1) {
+						childrenDes = 1 + ' child '
+					} else {
+						childrenDes = childrenNum + ' children '
+					}
+				}
+				let infantsDes = infantsNum == 0 ? '' : infantsNum + 'infant(s)'
+
+				return adultsDes + childrenDes + infantsDes
+			}
+		},
+		methods:{
+			...mapMutations([
+				mutaionNames.setBaggageInfo
+			]),
+			goBack(){
+				let trip = sessionStorage.flightType;
+				switch(trip){
+					case 'one':
+						this.$router.push('/oneway');
+						break;
+					case 'two':
+						this.$router.push('/roundtrip');
+						break;	
+				}
+			},
+			tripClass(index) {
+				return "trip-info"
+			},
+			fareRule(index){
+				let arr = this.flightInfos[index].flight;
+				let traverllNum =this.travellerNum;
+				let averagePrice = Math.round(arr.realPrice/traverllNum);
+				this.$router.push({path:'/book/fare',query:{flightNo:arr.flightNumber,departTimeStamp:arr.departTimeStamp,averagePrice:averagePrice}});
+				
+			},
+			submitBook(){
+				this.$router.push("/traveller")
+			},
+			radio1(){
+				this.isSelecA=!this.isSelecA;
+				if(this.isSelecA&&this.isSelecB){
+					this.isSelecB=false;
+				}
+				if(!this.isSelecA){
+					this.$refs.coupon.disabled = true;
+				}else{
+					this.$refs.coupon.disabled = false;
+				}
+				
+			},
+			radio2(){
+				this.isSelecB=!this.isSelecB;
+				if(this.isSelecA&&this.isSelecB){
+					this.isSelecA=false;
+					this.$refs.coupon.disabled = true;
+				}
+				if(this.isSelecC&&this.isSelecB){
+					this.isSelecC=false;
+					this.$refs.gold.disabled = true;
+				}
+			},
+			radio3(){
+				this.isSelecC=!this.isSelecC;
+				if(this.isSelecC&&this.isSelecB){
+					this.isSelecB=false;
+				}
+				if(!this.isSelecC){
+					this.$refs.gold.disabled = true;
+				}else{
+					this.$refs.gold.disabled = false;
+				}
+			}
+		},
+		mounted(){
+			let orderInfo = this.flightOrder
+			this.flightInfos.forEach((el)=>{
+				let d = el.flight.departDate;
+				let r = el.flight.returnDate;
+				el.durationDays=r.getDate()-d.getDate();
+			})
+			GetFlightOrderUtil.setOrderIntoSession(orderInfo,sessionStorage)
+		},
+	}
+</script>
+<style lang="less" scoped>
+
+	.selected{
+		border-color:#ffad3d!important;
+		background:#ffad3d url('../../assets/images/sure.png') center no-repeat;
+		background-size:contain;
+	}
+	::-webkit-scrollbar {
+		display: none;
+	}
+	::-webkit-input-placeholder{color:#ccc;font-size:0.5rem;padding-left:0.4rem;}
+	::-moz-placeholder{color:#ccc;font-size:0.5rem;padding-left:0.4rem;}
+	:-moz-placeholder{color:#ccc;font-size:0.5rem;padding-left:0.4rem;}
+	.header{
+		background:#f7f7f8;
+		border-bottom:1px solid #ccc;
+		span{
+			color:#000;
+			font-size:0.768rem;
+		}
+	}	
+	.container{
+		background-color:#f0eff5;
+		padding:0 0.68rem;
+		overflow:scroll;
+	}
+	.container>div{
+		padding-top:2.4rem;
+	}
+	.trip-info{
+		.title{
+			font-size:0.68rem;
+			color:#666;
+			line-height:1.45rem;
+			text-align:left;
+			span{
+				height:1.45rem;
+				display:block;
+				float:left;
+			}
+			.arive{
+				width:2.64rem;
+				background:url('../../assets/images/ic-btn-one3.png') center no-repeat;
+				background-size:0.68rem;
+			}
+		}
+		.trip-cont{
+			background-color:#fff;
+			border-radius:0.4rem;
+			padding:0.4rem;
+			.title{
+				height:2.14rem;
+				line-height:2.14rem;
+				span{
+					font-size:0.68rem;
+					color:#666;
+				}
+				.title-img{
+					width:0.68rem;
+					height:2.14rem;
+					img{
+						width:0.68rem;
+					}
+					margin-right:0.5rem;
+				}
+			}
+			.time-info{
+				padding-bottom:0.4rem;
+				h2{
+					font-size:0.768rem;
+					line-height:1.2rem;
+					color:#333;
+				}
+				div{
+					color:#ccc;
+					font-size:0.56rem;
+					line-height:0.68rem;
+
+				}
+			}
+			.from-time{
+				width:5rem;
+				h2{
+					text-align:right;
+				}
+				div{
+					text-align:right;
+					
+				}
+			}
+			.to-time{
+				width:5rem;
+				h2{
+					text-align:left;
+					i{
+						font-size:0.52rem;
+					}
+				}
+				div{
+					text-align:left;
+					overflow:hidden;
+				}
+			}
+			.distance{
+				span{
+					font-size:0.5rem;
+					color:#666;
+					width:3rem;
+					height:1.1rem;
+					line-height:1.1rem;
+					text-align:center;
+					background:url('../../assets/images/book/icon-.png') center bottom no-repeat;
+					background-size:2rem;
+				}
+			}
+		}
+	}
+	.trip-attach{
+		background-color:#fff;
+		border-radius:0.4rem;
+		padding:0.4rem;
+		margin-top:0.4rem;
+		.rules{
+			height:1.8rem;
+			line-height:1.8rem;
+			border-bottom:1px solid #eee;
+			border-top:1px solid #eee;
+			span,a{
+				font-size:0.56rem;
+				color:#666;
+			}
+			a{
+				color:#0b9d78;
+			}
+		}
+		.baggage-tit{
+			font-size:0.6rem;
+			color:#333;
+			text-align:left;
+			padding:0.2rem 0;
+			span{
+				margin-right:2.4rem;
+			}
+		}
+		.baggage-info{
+			h2{
+				font-size:0.68rem;
+				color:#666;
+				height:1.9rem;
+				line-height:1.9rem;
+				text-align:left;
+			}
+			div{
+				span{
+					font-size:0.6rem;
+					color:#ccc;
+					line-height:1.45rem;
+				}
+			}
+		}
+	}
+	.offers{
+		background-color:#fff;
+		margin:0.4rem 0;
+		border-radius:0.4rem;
+		padding-bottom:0.68rem;
+		h2{
+			font-size:0.68rem;
+			color:#333;
+			text-align:left;
+			line-height:1.9rem;
+			padding-left:0.4rem;
+			border-bottom:1px solid #eee;
+		}
+		.offers-group{
+			font-size:0.6rem;
+			padding-left:0.4rem;
+			padding-top:0.4rem;
+			color:#ccc;
+			text-align:left;
+			line-height:1.45rem;
+			background-color:#fff;
+			border-radius:0.2rem;
+			.radio-group{
+				.round1{
+					width:0.6rem;
+					height:0.6rem;
+					border-radius:50%;
+					border:1px solid #ccc;
+					position:relative;
+					.round2{
+						width:0.3rem;
+						height:0.3rem;
+						border-radius:50%;
+						background-color:#ffa033;
+						position:absolute;
+						top:50%;
+						left:50%;
+						transform:translateY(-50%) translateX(-50%);
+						-webkit-transform:translateY(-50%) translateX(-50%);
+					}
+				}
+				
+			}
+			.input-group{
+				padding-left:1rem;
+				padding-top:0.4rem;
+				input{
+					width:6.8rem;
+					height:1.7rem;
+					border:1px solid #ccc;
+					border-radius:0;
+				}
+				a{
+					width:4.05rem;
+					height:1.86rem;
+					line-height:1.86rem;
+					font-size:0.6rem;
+					text-align:center;
+					color:#fff;
+					display:block;
+				}
+				.cheked{
+					background-color:#ffa033;
+				}
+				.disabel{
+					background-color:#ccc;
+				}
+			}
+		}
+		
+	}
+	.contact-info{
+		h2{
+			font-size:0.68rem;
+			color:#333;
+			text-align:left;
+			line-height:1.45rem;
+			padding-left:0.4rem;
+		}
+		.contact-cont{
+			padding:0 0.4rem;
+			background-color:#fff;
+			padding-bottom:0.6rem;
+			border-radius:0.4rem;
+			.forms{
+				text-align:left;
+				span{
+					font-size:0.68rem;
+					color:#666;
+					width:2.05rem;
+					mrgin-right:0.2rem;
+					line-height:1.45rem;
+				}
+				input{
+					font-size:0.5rem;
+					padding-left:0.2rem;
+					color:#666;
+					border-bottom:1px solid #ccc;
+					line-height:1rem;
+					text-indent:0;
+					border-radius:0;
+				}
+			}
+			p{
+				font-size:0.6rem;
+				color:#ccc;
+				padding-left:2.4rem;
+				line-height:0.768rem;
+			}
+		}
+	}
+	.fare{
+		h2{
+			font-size:0.68rem;
+			color:#333;
+			text-align:left;
+			line-height:1.45rem;
+			padding-left:0.4rem;
+		}
+	}
+	.term{
+		margin-top:1rem;
+	}
+	p{
+		font-size:0.5rem;
+		color:#ccc;
+		text-align:left;
+		padding-left:0.6rem;
+		line-height:0.768rem;
+		.round{
+				width:0.5rem;
+				height:0.5rem;
+				border-radius:50%;
+				border:1px solid #ccc;
+				margin-top:0.4rem;
+				margin-right:0.2rem;
+				display:inline-block;
+			}
+	}
+	p::before{
+		display:table;
+		content:"";
+	}
+	.payment{
+		width:100%;
+		padding:0.4rem 0 1rem;
+		.submitBook{
+			width:100%;
+			font-size:0.768rem;
+			color:#fff;
+			height:2rem;
+			background-color:#ffad3d;
+			border-radius:0.3rem;
+			cursor:pointer;
+		}
+	}
+</style>
